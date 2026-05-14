@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CliniCore Pro — Sistema Clínico</title>
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Chart.js y jsPDF -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--bg2:#0d1117;--bg3:#111827;--card:rgba(13,17,23,0.9);
+  --fg:#e8edf5;--fg2:#8b95a8;--fg3:#4b5563;
+  --green:#00d97e;--green2:rgba(0,217,126,0.12);--green-glow:rgba(0,217,126,0.25);
+  --blue:#3b9eff;--blue2:rgba(59,158,255,0.12);
+  --orange:#ff8c42;--orange2:rgba(255,140,66,0.12);
+  --red:#ff4560;--red2:rgba(255,69,96,0.12);
+  --purple:#a855f7;--purple2:rgba(168,85,247,0.12);
+  --cyan:#22d3ee;--cyan2:rgba(34,211,238,0.12);
+  --yellow:#fbbf24;--yellow2:rgba(251,191,36,0.12);
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+  --radius:16px;--radius2:12px;--radius3:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden;}
+h1,h2,h3,h4,h5{font-family:'Syne',sans-serif;}
+.bg-mesh{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(ellipse 60% 40% at 20% 10%,rgba(0,217,126,0.07),transparent),
+  radial-gradient(ellipse 50% 35% at 80% 90%,rgba(59,158,255,0.07),transparent),
+  radial-gradient(ellipse 40% 30% at 60% 40%,rgba(168,85,247,0.04),transparent),
+  var(--bg);}
+.bg-dots{position:fixed;inset:0;z-index:-1;background-image:radial-gradient(rgba(255,255,255,0.03) 1px,transparent 1px);background-size:32px 32px;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--fg3);border-radius:3px;}
+#loginScreen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;}
+#loginScreen.hidden{display:none;}
+.login-wrap{width:100%;max-width:440px;padding:20px;}
+.login-card{background:var(--card);border:1px solid var(--border2);border-radius:24px;padding:48px 40px;backdrop-filter:blur(24px);}
+.login-brand{text-align:center;margin-bottom:36px;}
+.login-icon{width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--green),var(--blue));display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 0 40px var(--green-glow);}
+.login-brand h1{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--green),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.login-brand p{color:var(--fg2);font-size:14px;margin-top:4px;}
+.login-err{background:var(--red2);border:1px solid rgba(255,69,96,0.3);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:16px;display:none;}
+.login-err.show{display:block;}
+.login-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);}
+.login-chip{padding:6px 14px;background:var(--green2);border:1px solid rgba(0,217,126,0.2);border-radius:20px;font-size:12px;color:var(--green);cursor:pointer;transition:all .2s;}
+.login-chip:hover{background:rgba(0,217,126,0.2);}
+.sidebar{position:fixed;left:0;top:0;height:100vh;width:260px;background:var(--card);backdrop-filter:blur(24px);border-right:1px solid var(--border);padding:20px 16px;display:flex;flex-direction:column;z-index:100;transition:transform .3s ease;overflow-y:auto;}
+.sb-brand{display:flex;align-items:center;gap:12px;padding:8px 8px 20px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.sb-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-brand h1{font-size:17px;font-weight:800;background:linear-gradient(135deg,var(--green),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-brand p{font-size:11px;color:var(--fg3);}
+.sb-user{display:flex;align-items:center;gap:10px;padding:12px;background:var(--green2);border:1px solid rgba(0,217,126,0.15);border-radius:var(--radius2);margin-bottom:16px;}
+.sb-avatar{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.sb-uname{font-size:13px;font-weight:600;}
+.sb-urole{font-size:11px;color:var(--fg3);}
+.sb-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);padding:8px 12px 4px;margin-top:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius2);cursor:pointer;transition:all .2s;color:var(--fg2);margin-bottom:2px;font-size:14px;font-weight:500;}
+.nav-item:hover{background:rgba(255,255,255,0.04);color:var(--fg);}
+.nav-item.active{background:var(--green2);color:var(--green);border:1px solid rgba(0,217,126,0.2);}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;}
+.nav-badge{margin-left:auto;min-width:20px;height:20px;border-radius:10px;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;}
+.main-content{margin-left:260px;padding:28px;min-height:100vh;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;gap:16px;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.search-wrap{position:relative;width:300px;}
+.search-wrap input{width:100%;padding:11px 16px 11px 44px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);color:var(--fg);font-size:14px;transition:all .2s;font-family:'Outfit',sans-serif;}
+.search-wrap input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--fg3);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.icon-btn{width:40px;height:40px;border-radius:var(--radius2);background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--fg2);position:relative;}
+.icon-btn:hover{border-color:var(--green);color:var(--fg);}
+.notif-dot{position:absolute;top:7px;right:7px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--bg);}
+.topbar-avatar{width:40px;height:40px;border-radius:var(--radius2);background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;cursor:pointer;}
+.logout-btn{padding:9px 16px;border-radius:var(--radius2);background:var(--red2);border:1px solid rgba(255,69,96,0.25);color:var(--red);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;font-family:'Outfit',sans-serif;}
+.logout-btn:hover{background:rgba(255,69,96,0.25);}
+.page{display:none;}
+.page.active{display:block;animation:fadeUp .35s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:24px;}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;position:relative;overflow:hidden;transition:all .3s;cursor:default;}
+.scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:.3s;}
+.scard:hover{transform:translateY(-3px);border-color:var(--border2);}
+.scard:hover::after{opacity:1;}
+.scard.g::after{background:linear-gradient(90deg,var(--green),var(--cyan));}
+.scard.b::after{background:linear-gradient(90deg,var(--blue),var(--purple));}
+.scard.o::after{background:linear-gradient(90deg,var(--orange),var(--yellow));}
+.scard.r::after{background:linear-gradient(90deg,var(--red),var(--orange));}
+.scard.p::after{background:linear-gradient(90deg,var(--purple),var(--blue));}
+.scard.c::after{background:linear-gradient(90deg,var(--cyan),var(--green));}
+.scard-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.scard-icon.g{background:var(--green2);color:var(--green);}
+.scard-icon.b{background:var(--blue2);color:var(--blue);}
+.scard-icon.o{background:var(--orange2);color:var(--orange);}
+.scard-icon.r{background:var(--red2);color:var(--red);}
+.scard-icon.p{background:var(--purple2);color:var(--purple);}
+.scard-icon.c{background:var(--cyan2);color:var(--cyan);}
+.scard-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:700;line-height:1;}
+.scard-lbl{color:var(--fg2);font-size:13px;margin-top:4px;}
+.scard-chg{position:absolute;top:20px;right:20px;font-size:12px;font-weight:600;}
+.chg-up{color:var(--green);}
+.chg-dn{color:var(--red);}
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.sec-title{font-size:18px;font-weight:700;}
+.sec-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.btn{padding:10px 20px;border-radius:var(--radius2);font-weight:600;font-size:13px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px;border:none;font-family:'Outfit',sans-serif;white-space:nowrap;}
+.btn-primary{background:linear-gradient(135deg,var(--green),#00b868);color:#000;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px var(--green-glow);}
+.btn-secondary{background:var(--card);border:1px solid var(--border2);color:var(--fg);}
+.btn-secondary:hover{border-color:var(--green);}
+.btn-danger{background:var(--red2);border:1px solid rgba(255,69,96,0.3);color:var(--red);}
+.btn-danger:hover{background:rgba(255,69,96,0.25);}
+.btn-blue{background:var(--blue2);border:1px solid rgba(59,158,255,0.3);color:var(--blue);}
+.btn-orange{background:var(--orange2);border:1px solid rgba(255,140,66,0.3);color:var(--orange);}
+.btn-purple{background:var(--purple2);border:1px solid rgba(168,85,247,0.3);color:var(--purple);}
+.btn-sm{padding:7px 14px;font-size:12px;}
+.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.tbl-hdr{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.tbl-title{font-size:16px;font-weight:700;}
+table{width:100%;border-collapse:collapse;}
+th{padding:13px 20px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3);background:rgba(0,0,0,0.2);}
+td{padding:14px 20px;border-top:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tr{transition:background .15s;}
+tbody tr:hover{background:rgba(0,217,126,0.03);}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-green{background:var(--green2);color:var(--green);}
+.badge-blue{background:var(--blue2);color:var(--blue);}
+.badge-orange{background:var(--orange2);color:var(--orange);}
+.badge-red{background:var(--red2);color:var(--red);}
+.badge-purple{background:var(--purple2);color:var(--purple);}
+.badge-cyan{background:var(--cyan2);color:var(--cyan);}
+.act-btn{width:32px;height:32px;border-radius:var(--radius3);border:none;background:transparent;color:var(--fg2);cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;}
+.act-btn:hover{background:var(--green2);color:var(--green);}
+.act-btn.del:hover{background:var(--red2);color:var(--red);}
+.act-btn.edit:hover{background:var(--blue2);color:var(--blue);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
+.modal-overlay.active{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:22px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;transform:scale(.93);opacity:0;transition:all .25s;}
+.modal-overlay.active .modal{transform:scale(1);opacity:1;}
+.modal-lg{max-width:700px;}
+.modal-xl{max-width:880px;}
+.modal-hdr{padding:22px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-ttl{font-size:18px;font-weight:700;}
+.modal-x{width:36px;height:36px;border-radius:var(--radius3);border:none;background:var(--card);color:var(--fg2);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.modal-x:hover{background:var(--red2);color:var(--red);}
+.modal-body{padding:24px;}
+.modal-ftr{padding:20px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+.form-group{margin-bottom:18px;}
+.form-label{display:block;font-size:13px;font-weight:600;margin-bottom:7px;color:var(--fg2);}
+.form-input{width:100%;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);color:var(--fg);font-size:13px;transition:all .2s;font-family:'Outfit',sans-serif;}
+.form-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+.form-select{width:100%;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);color:var(--fg);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;font-family:'Outfit',sans-serif;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.form-divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+.notif-panel{position:fixed;top:72px;right:24px;width:360px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);z-index:500;display:none;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.notif-panel.open{display:block;animation:fadeUp .2s ease;}
+.notif-hdr{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.notif-item{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;cursor:pointer;transition:background .15s;}
+.notif-item:hover{background:rgba(255,255,255,0.02);}
+.notif-item.unread{background:rgba(0,217,126,0.04);}
+.notif-dot2{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.notif-empty{padding:32px;text-align:center;color:var(--fg3);font-size:13px;}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;}
+.chart-card h3{font-size:15px;font-weight:700;margin-bottom:18px;}
+.chart-full{grid-column:span 2;}
+.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);padding:4px;margin-bottom:20px;width:fit-content;}
+.tab{padding:8px 18px;border-radius:var(--radius3);cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;color:var(--fg2);}
+.tab.active{background:var(--green);color:#000;}
+.beds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.bed-card{background:var(--card);border:2px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all .2s;text-align:center;}
+.bed-card:hover{transform:translateY(-2px);}
+.bed-card.libre{border-color:rgba(0,217,126,0.4);}
+.bed-card.ocupada{border-color:rgba(255,69,96,0.4);}
+.bed-card.reservada{border-color:rgba(255,140,66,0.4);}
+.bed-card.mantenimiento{border-color:rgba(168,85,247,0.4);}
+.bed-icon{font-size:32px;margin-bottom:10px;}
+.bed-num{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.bed-status{font-size:12px;margin-top:4px;}
+.pay-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.doc-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:all .2s;}
+.doc-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.doc-avatar{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;margin-bottom:14px;}
+.toast-box{position:fixed;bottom:24px;right:24px;z-index:9000;display:flex;flex-direction:column;gap:10px;}
+.toast{padding:14px 20px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);display:flex;align-items:center;gap:10px;transform:translateX(120%);animation:slideIn .3s ease forwards;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-size:13px;}
+.toast.ok{border-left:3px solid var(--green);}
+.toast.err{border-left:3px solid var(--red);}
+.toast.info{border-left:3px solid var(--blue);}
+@keyframes slideIn{to{transform:translateX(0);}}
+.mob-btn{display:none;width:40px;height:40px;border-radius:var(--radius2);background:var(--card);border:1px solid var(--border);align-items:center;justify-content:center;cursor:pointer;color:var(--fg);}
+@media(max-width:1200px){.stats-row{grid-template-columns:repeat(2,1fr);}.chart-grid{grid-template-columns:1fr;}.chart-full{grid-column:span 1;}}
+@media(max-width:900px){.sidebar{transform:translateX(-100%);}.sidebar.open{transform:translateX(0);}.main-content{margin-left:0;}.mob-btn{display:flex;}.search-wrap{display:none;}.form-row{grid-template-columns:1fr;}.form-row3{grid-template-columns:1fr;}}
+.vid-wrap{background:#000;border-radius:var(--radius);overflow:hidden;position:relative;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
+.vid-wrap video{width:100%;height:100%;object-fit:cover;}
+.vid-ph{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--fg2);}
+.vid-self{position:absolute;bottom:10px;right:10px;width:130px;border-radius:10px;overflow:hidden;border:2px solid var(--green);}
+.vid-self video{width:100%;display:block;}
+.vid-controls{display:flex;justify-content:center;gap:14px;margin-top:18px;}
+.vid-btn{width:48px;height:48px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.vid-btn.on{background:var(--green2);color:var(--green);border:2px solid rgba(0,217,126,0.4);}
+.vid-btn.off{background:var(--red2);color:var(--red);border:2px solid rgba(255,69,96,0.4);}
+.vid-btn.end{background:var(--red);color:#fff;width:58px;height:58px;}
+.vid-btn.end:hover{transform:scale(1.05);}
+.vid-timer{font-family:'Syne',sans-serif;font-size:16px;color:var(--green);font-weight:700;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.detail-item{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--radius2);padding:14px;}
+.detail-item label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3);display:block;margin-bottom:4px;}
+.detail-item span{font-size:14px;font-weight:500;}
+.hl{background:rgba(0,217,126,0.2);border-radius:3px;padding:0 2px;}
+#dbStatus{position:fixed;bottom:10px;left:10px;z-index:9999;font-size:11px;padding:6px 12px;border-radius:20px;background:var(--card);border:1px solid var(--border);color:var(--fg2);}
+#dbStatus.ok{color:var(--green);border-color:var(--green);}
+#dbStatus.err{color:var(--red);border-color:var(--red);}
+#dbStatus.syncing{color:var(--orange);border-color:var(--orange);}
+</style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div class="bg-dots"></div>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen">
+<div class="login-wrap">
+<div class="login-card">
+  <div class="login-brand">
+    <div class="login-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+    <h1>CliniCore Pro</h1>
+    <p>Sistema de Gestión Clínica</p>
+  </div>
+  <div class="login-err" id="loginErr">❌ Usuario o contraseña incorrectos</div>
+  <div class="form-group"><label class="form-label">Usuario</label><input type="text" class="form-input" id="liUser" placeholder="tu.usuario"></div>
+  <div class="form-group"><label class="form-label">Contraseña</label><input type="password" class="form-input" id="liPass" placeholder="••••••••"></div>
+  <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;" onclick="doLogin()" id="loginBtn">Ingresar al Sistema</button>
+  <div id="dbStatus" class="syncing">🔄 Conectando a base de datos...</div>
+  <div class="login-chips">
+    <span class="login-chip" onclick="fl('admin','admin123')">👑 Admin</span>
+    <span class="login-chip" onclick="fl('dr.martinez','clin1234')">🩺 Dr. Martínez</span>
+    <span class="login-chip" onclick="fl('dra.garcia','clin1234')">🩺 Dra. García</span>
+    <span class="login-chip" onclick="fl('recepcion','recep2024')">📋 Recepción</span>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ==================== SIDEBAR ==================== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+    <div><h1>CliniCore</h1><p>Pro v2.0 ☁️</p></div>
+  </div>
+  <div class="sb-user" id="sbUser">
+    <div class="sb-avatar" id="sbAv">AD</div>
+    <div><div class="sb-uname" id="sbName">Admin</div><div class="sb-urole" id="sbRole">Administrador</div></div>
+  </div>
+  <div class="sb-section">Principal</div>
+  <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></div>
+  <div class="nav-item" data-page="pacientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Pacientes</span></div>
+  <div class="nav-item" data-page="citas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Citas</span><span class="nav-badge" id="nbCitas">0</span></div>
+  <div class="nav-item" data-page="consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Consultas</span></div>
+  <div class="sb-section">Gestión</div>
+  <div class="nav-item" data-page="medicos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Médicos</span></div>
+  <div class="nav-item" data-page="camas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg><span>Hospitalización</span></div>
+  <div class="nav-item" data-page="pagos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span>Pagos / Facturación</span></div>
+  <div class="sb-section">Análisis</div>
+  <div class="nav-item" data-page="estadisticas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Estadísticas</span></div>
+  <div class="nav-item" data-page="reportes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg><span>Reportes PDF</span></div>
+  <div class="sb-section">Sistema</div>
+  <div class="nav-item" data-page="notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notificaciones</span><span class="nav-badge" id="nbNotif">0</span></div>
+  <div class="nav-item" data-page="configuracion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.51 1.65 1.65 0 0 0 10 3V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Configuración</span></div>
+</aside>
+
+<!-- ==================== MAIN ==================== -->
+<main class="main-content" id="mainApp" style="display:none;">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="mob-btn" id="mobBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Buscar paciente, cita, diagnóstico..." id="globalSearch" oninput="globalSearchFn()">
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="icon-btn" onclick="toggleNotifPanel()" id="notifBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot"></span></div>
+      <div class="topbar-avatar" id="topAvatar">AD</div>
+      <button class="logout-btn" onclick="doLogout()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Salir</button>
+    </div>
+  </div>
+
+  <!-- NOTIF PANEL -->
+  <div class="notif-panel" id="notifPanel">
+    <div class="notif-hdr"><h3 style="font-size:15px;font-weight:700;">Notificaciones</h3><button class="btn btn-sm btn-secondary" onclick="markAllRead()">Marcar leídas</button></div>
+    <div id="notifList"></div>
+  </div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="page active" id="page-dashboard">
+    <div class="stats-row">
+      <div class="scard g"><div class="scard-icon g"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="scard-val" id="ds-pac">0</div><div class="scard-lbl">Pacientes</div><div class="scard-chg chg-up">activos</div></div>
+      <div class="scard b"><div class="scard-icon b"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="scard-val" id="ds-cit">0</div><div class="scard-lbl">Citas Pendientes</div><div class="scard-chg chg-up">hoy</div></div>
+      <div class="scard o"><div class="scard-icon o"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="scard-val" id="ds-ing">$0</div><div class="scard-lbl">Ingresos del Mes</div><div class="scard-chg chg-up">facturado</div></div>
+      <div class="scard r"><div class="scard-icon r"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/></svg></div><div class="scard-val" id="ds-cam">0</div><div class="scard-lbl">Camas Libres</div><div class="scard-chg chg-up">disponibles</div></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><h3>📈 Consultas por mes</h3><canvas id="chartConsultas" height="200"></canvas></div>
+      <div class="chart-card"><h3>🍩 Estado de Citas</h3><canvas id="chartCitas" height="200"></canvas></div>
+      <div class="chart-card chart-full"><h3>💰 Ingresos Semanales</h3><canvas id="chartIngresos" height="120"></canvas></div>
+    </div>
+    <div class="sec-hdr"><h2 class="sec-title">Próximas Citas</h2><button class="btn btn-primary" onclick="openModal('mCita')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Cita</button></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Médico</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="tbDash"></tbody></table></div>
+  </section>
+
+  <!-- ===== PACIENTES ===== -->
+  <section class="page" id="page-pacientes">
+    <div class="sec-hdr">
+      <h2 class="sec-title">Gestión de Pacientes</h2>
+      <div class="sec-actions">
+        <select class="form-select" style="width:auto;" id="filterPacSexo" onchange="renderPacientes()"><option value="">Todos</option><option value="M">Masculino</option><option value="F">Femenino</option></select>
+        <select class="form-select" style="width:auto;" id="filterPacSangre" onchange="renderPacientes()"><option value="">Sangre: Todos</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select>
+        <button class="btn btn-primary" onclick="openModal('mPaciente')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo Paciente</button>
+      </div>
+    </div>
+    <div class="search-wrap" style="width:100%;max-width:420px;margin-bottom:18px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Nombre, documento, teléfono, email..." id="pacSearch" oninput="renderPacientes()">
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Nombre</th><th>Doc.</th><th>Teléfono</th><th>Edad</th><th>Sangre</th><th>Última Visita</th><th>Acciones</th></tr></thead><tbody id="tbPac"></tbody></table></div>
+  </section>
+
+  <!-- ===== CITAS ===== -->
+  <section class="page" id="page-citas">
+    <div class="sec-hdr">
+      <h2 class="sec-title">Citas Médicas</h2>
+      <div class="sec-actions">
+        <select class="form-select" style="width:auto;" id="filterCitaEstado" onchange="renderCitas()"><option value="">Todos</option><option value="pending">Pendientes</option><option value="completed">Completadas</option><option value="cancelled">Canceladas</option></select>
+        <select class="form-select" style="width:auto;" id="filterCitaTipo" onchange="renderCitas()"><option value="">Tipo: Todos</option><option value="general">General</option><option value="control">Control</option><option value="especialidad">Especialidad</option><option value="urgencia">Urgencia</option><option value="video">Video</option></select>
+        <button class="btn btn-primary" onclick="openModal('mCita')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Programar Cita</button>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Médico</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tbCitas"></tbody></table></div>
+  </section>
+
+  <!-- ===== CONSULTAS ===== -->
+  <section class="page" id="page-consultas">
+    <div class="sec-hdr">
+      <h2 class="sec-title">Consultas Médicas</h2>
+      <div class="sec-actions">
+        <select class="form-select" style="width:auto;" id="filterConsTipo" onchange="renderConsultas()"><option value="">Tipo: Todos</option><option value="general">General</option><option value="control">Control</option><option value="especialidad">Especialidad</option></select>
+        <button class="btn btn-primary" onclick="openModal('mConsulta')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Consulta</button>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Paciente</th><th>Diagnóstico</th><th>Médico</th><th>Tipo</th><th>Signos Vitales</th><th>Acciones</th></tr></thead><tbody id="tbCons"></tbody></table></div>
+  </section>
+
+  <!-- ===== MEDICOS ===== -->
+  <section class="page" id="page-medicos">
+    <div class="sec-hdr"><h2 class="sec-title">Médicos y Personal</h2><button class="btn btn-primary" onclick="openModal('mMedico')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo Médico</button></div>
+    <div class="doc-grid" id="docGrid"></div>
+  </section>
+
+  <!-- ===== CAMAS ===== -->
+  <section class="page" id="page-camas">
+    <div class="sec-hdr">
+      <h2 class="sec-title">Hospitalización — Camas</h2>
+      <div class="sec-actions">
+        <select class="form-select" style="width:auto;" id="filterCama" onchange="renderCamas()"><option value="">Todas</option><option value="libre">Libres</option><option value="ocupada">Ocupadas</option><option value="reservada">Reservadas</option><option value="mantenimiento">Mantenimiento</option></select>
+      </div>
+    </div>
+    <div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+      <div class="scard g"><div class="scard-val" id="cs-libre">0</div><div class="scard-lbl">Libres</div></div>
+      <div class="scard r"><div class="scard-val" id="cs-ocup">0</div><div class="scard-lbl">Ocupadas</div></div>
+      <div class="scard o"><div class="scard-val" id="cs-res">0</div><div class="scard-lbl">Reservadas</div></div>
+      <div class="scard p"><div class="scard-val" id="cs-mant">0</div><div class="scard-lbl">Mantenimiento</div></div>
+    </div>
+    <div class="beds-grid" id="bedsGrid"></div>
+  </section>
+
+  <!-- ===== PAGOS ===== -->
+  <section class="page" id="page-pagos">
+    <div class="sec-hdr"><h2 class="sec-title">Pagos y Facturación</h2><button class="btn btn-primary" onclick="openModal('mPago')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo Pago</button></div>
+    <div class="pay-summary">
+      <div class="scard g"><div class="scard-icon g"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="scard-val" id="pay-total">$0</div><div class="scard-lbl">Total Cobrado</div></div>
+      <div class="scard o"><div class="scard-icon o"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="scard-val" id="pay-pend">$0</div><div class="scard-lbl">Pendiente de Cobro</div></div>
+      <div class="scard b"><div class="scard-icon b"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="scard-val" id="pay-count">0</div><div class="scard-lbl">Facturas Emitidas</div></div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>#Factura</th><th>Paciente</th><th>Servicio</th><th>Monto</th><th>Método</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody id="tbPagos"></tbody></table></div>
+  </section>
+
+  <!-- ===== ESTADISTICAS ===== -->
+  <section class="page" id="page-estadisticas">
+    <div class="sec-hdr"><h2 class="sec-title">Estadísticas y Análisis</h2></div>
+    <div class="stats-row">
+      <div class="scard g"><div class="scard-val" id="est-pac">0</div><div class="scard-lbl">Total Pacientes</div></div>
+      <div class="scard b"><div class="scard-val" id="est-cons">0</div><div class="scard-lbl">Total Consultas</div></div>
+      <div class="scard o"><div class="scard-val" id="est-ing">$0</div><div class="scard-lbl">Ingresos Totales</div></div>
+      <div class="scard p"><div class="scard-val" id="est-med">0</div><div class="scard-lbl">Médicos Activos</div></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><h3>👤 Pacientes por sexo</h3><canvas id="chartSexo" height="220"></canvas></div>
+      <div class="chart-card"><h3>🩺 Consultas por médico</h3><canvas id="chartMedicos" height="220"></canvas></div>
+      <div class="chart-card"><h3>💳 Métodos de pago</h3><canvas id="chartPagos" height="220"></canvas></div>
+      <div class="chart-card"><h3>🏥 Ocupación de camas</h3><canvas id="chartCamas" height="220"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ===== REPORTES ===== -->
+  <section class="page" id="page-reportes">
+    <div class="sec-hdr"><h2 class="sec-title">Exportar Reportes PDF</h2></div>
+    <div class="stats-row">
+      <div class="scard g"><div class="scard-val" id="rpt-pac">0</div><div class="scard-lbl">Pacientes</div></div>
+      <div class="scard b"><div class="scard-val" id="rpt-cit">0</div><div class="scard-lbl">Citas</div></div>
+      <div class="scard o"><div class="scard-val" id="rpt-con">0</div><div class="scard-lbl">Consultas</div></div>
+      <div class="scard p"><div class="scard-val" id="rpt-pay">0</div><div class="scard-lbl">Facturas</div></div>
+    </div>
+    <div class="tbl-wrap">
+      <div class="tbl-hdr"><span class="tbl-title">Reportes Disponibles</span></div>
+      <table><thead><tr><th>Reporte</th><th>Descripción</th><th>Registros</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td>📋 Pacientes</td><td>Listado completo con datos personales y clínicos</td><td id="rc-pac">0</td><td><button class="btn btn-primary btn-sm" onclick="exportPDF('pacientes')">⬇ PDF</button></td></tr>
+        <tr><td>📅 Citas</td><td>Todas las citas con estado y médico asignado</td><td id="rc-cit">0</td><td><button class="btn btn-primary btn-sm" onclick="exportPDF('citas')">⬇ PDF</button></td></tr>
+        <tr><td>🩺 Consultas</td><td>Historial de consultas y diagnósticos</td><td id="rc-con">0</td><td><button class="btn btn-primary btn-sm" onclick="exportPDF('consultas')">⬇ PDF</button></td></tr>
+        <tr><td>💰 Pagos</td><td>Reporte financiero de facturas y cobros</td><td id="rc-pay">0</td><td><button class="btn btn-primary btn-sm" onclick="exportPDF('pagos')">⬇ PDF</button></td></tr>
+        <tr><td>🏥 Camas</td><td>Estado de ocupación hospitalaria</td><td id="rc-cam">0</td><td><button class="btn btn-primary btn-sm" onclick="exportPDF('camas')">⬇ PDF</button></td></tr>
+        <tr><td>📊 General</td><td>Resumen ejecutivo completo del sistema</td><td>—</td><td><button class="btn btn-primary btn-sm" onclick="exportPDF('general')">⬇ PDF</button></td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <!-- ===== NOTIFICACIONES ===== -->
+  <section class="page" id="page-notificaciones">
+    <div class="sec-hdr"><h2 class="sec-title">Centro de Notificaciones</h2><button class="btn btn-secondary btn-sm" onclick="markAllRead()">✓ Marcar todas leídas</button></div>
+    <div class="tbl-wrap"><div id="notifFull" style="padding:8px 0;"></div></div>
+  </section>
+
+  <!-- ===== CONFIGURACION ===== -->
+  <section class="page" id="page-configuracion">
+    <div class="sec-hdr"><h2 class="sec-title">Configuración del Sistema</h2></div>
+    <div style="display:grid;gap:20px;max-width:820px;">
+      <div class="tbl-wrap" style="padding:24px;">
+        <h3 style="font-size:16px;margin-bottom:20px;">🏥 Datos de la Clínica</h3>
+        <div class="form-row"><div class="form-group"><label class="form-label">Nombre</label><input class="form-input" id="cfgN" value="Clínica Médica Central"></div><div class="form-group"><label class="form-label">Teléfono</label><input class="form-input" id="cfgT" value="+1 809 555 1234"></div></div>
+        <div class="form-group"><label class="form-label">Dirección</label><input class="form-input" id="cfgD" value="Av. Independencia 45, Santo Domingo"></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="cfgE" value="info@clinicore.do"></div>
+        <button class="btn btn-primary" onclick="saveConfig()">Guardar Cambios</button>
+      </div>
+      <div class="tbl-wrap" style="padding:24px;">
+        <h3 style="font-size:16px;margin-bottom:16px;">👥 Usuarios del Sistema</h3>
+        <table><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:monospace;">admin</td><td>Administrador</td><td><span class="badge badge-purple">Admin</span></td></tr>
+          <tr><td style="font-family:monospace;">dr.martinez</td><td>Dr. Martínez</td><td><span class="badge badge-green">Médico</span></td></tr>
+          <tr><td style="font-family:monospace;">dra.garcia</td><td>Dra. García</td><td><span class="badge badge-green">Médico</span></td></tr>
+          <tr><td style="font-family:monospace;">recepcion</td><td>Recepción</td><td><span class="badge badge-blue">Recepcionista</span></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ==================== MODALS ==================== -->
+<!-- PACIENTE -->
+<div class="modal-overlay" id="mPaciente">
+<div class="modal modal-lg">
+  <div class="modal-hdr"><h3 class="modal-ttl" id="mPacTtl">Nuevo Paciente</h3><button class="modal-x" onclick="closeModal('mPaciente')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="editPacId">
+    <div class="form-row"><div class="form-group"><label class="form-label">Nombre *</label><input class="form-input" id="pNombre"></div><div class="form-group"><label class="form-label">Apellido *</label><input class="form-input" id="pApellido"></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Documento *</label><input class="form-input" id="pDoc"></div><div class="form-group"><label class="form-label">Fecha Nacimiento</label><input type="date" class="form-input" id="pFechaN"></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Sexo</label><select class="form-select" id="pSexo"><option value="">-</option><option value="M">Masculino</option><option value="F">Femenino</option></select></div><div class="form-group"><label class="form-label">Grupo Sanguíneo</label><select class="form-select" id="pSangre"><option value="">-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Teléfono</label><input class="form-input" id="pTel"></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="pEmail"></div></div>
+    <div class="form-group"><label class="form-label">Dirección</label><input class="form-input" id="pDir"></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Seguro Médico</label><input class="form-input" id="pSeguro" placeholder="Ej: ARS Salud"></div><div class="form-group"><label class="form-label">No. Afiliado</label><input class="form-input" id="pAfiliado"></div></div>
+    <div class="form-group"><label class="form-label">Alergias</label><input class="form-input" id="pAlergias" placeholder="Separar con comas"></div>
+    <div class="form-group"><label class="form-label">Antecedentes Médicos</label><textarea class="form-input" id="pAntecedentes" rows="2" style="resize:none;"></textarea></div>
+    <div class="form-group"><label class="form-label">Contacto de Emergencia</label><input class="form-input" id="pEmergencia" placeholder="Nombre y teléfono"></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mPaciente')">Cancelar</button><button class="btn btn-primary" onclick="savePaciente()">Guardar</button></div>
+</div>
+</div>
+
+<!-- CITA -->
+<div class="modal-overlay" id="mCita">
+<div class="modal">
+  <div class="modal-hdr"><h3 class="modal-ttl" id="mCitaTtl">Programar Cita</h3><button class="modal-x" onclick="closeModal('mCita')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="editCitaId">
+    <div class="form-group"><label class="form-label">Paciente *</label><select class="form-select" id="cPaciente"></select></div>
+    <div class="form-group"><label class="form-label">Médico</label><select class="form-select" id="cMedico"></select></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Fecha *</label><input type="date" class="form-input" id="cFecha"></div><div class="form-group"><label class="form-label">Hora *</label><input type="time" class="form-input" id="cHora"></div></div>
+    <div class="form-group"><label class="form-label">Tipo *</label><select class="form-select" id="cTipo"><option value="">-</option><option value="general">General</option><option value="especialidad">Especialidad</option><option value="control">Control</option><option value="urgencia">Urgencia</option><option value="video">Video Llamada</option></select></div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="cNotas" rows="2" style="resize:none;"></textarea></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mCita')">Cancelar</button><button class="btn btn-primary" onclick="saveCita()">Guardar</button></div>
+</div>
+</div>
+
+<!-- CONSULTA -->
+<div class="modal-overlay" id="mConsulta">
+<div class="modal modal-lg">
+  <div class="modal-hdr"><h3 class="modal-ttl" id="mConsTtl">Nueva Consulta</h3><button class="modal-x" onclick="closeModal('mConsulta')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="editConsId">
+    <div class="form-row"><div class="form-group"><label class="form-label">Paciente *</label><select class="form-select" id="cnPaciente"></select></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="cnTipo"><option value="general">General</option><option value="control">Control</option><option value="especialidad">Especialidad</option></select></div></div>
+    <div class="form-group"><label class="form-label">Motivo *</label><input class="form-input" id="cnMotivo"></div>
+    <div class="form-group"><label class="form-label">Diagnóstico *</label><textarea class="form-input" id="cnDiag" rows="2" style="resize:none;"></textarea></div>
+    <div class="form-row3">
+      <div class="form-group"><label class="form-label">Peso (kg)</label><input type="number" class="form-input" id="cnPeso" step="0.1"></div>
+      <div class="form-group"><label class="form-label">Altura (cm)</label><input type="number" class="form-input" id="cnAltura"></div>
+      <div class="form-group"><label class="form-label">Presión</label><input class="form-input" id="cnPresion" placeholder="120/80"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Temperatura (°C)</label><input type="number" class="form-input" id="cnTemp" step="0.1" placeholder="36.6"></div>
+      <div class="form-group"><label class="form-label">Frecuencia Cardíaca</label><input type="number" class="form-input" id="cnFC" placeholder="bpm"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Receta</label><textarea class="form-input" id="cnReceta" rows="3" style="resize:none;" placeholder="Medicamentos y dosis..."></textarea></div>
+    <div class="form-group"><label class="form-label">Indicaciones</label><textarea class="form-input" id="cnIndicaciones" rows="2" style="resize:none;"></textarea></div>
+    <div class="form-group"><label class="form-label">Próxima cita (días)</label><input type="number" class="form-input" id="cnProxCita" placeholder="Ej: 30"></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mConsulta')">Cancelar</button><button class="btn btn-primary" onclick="saveConsulta()">Guardar</button></div>
+</div>
+</div>
+
+<!-- MEDICO -->
+<div class="modal-overlay" id="mMedico">
+<div class="modal">
+  <div class="modal-hdr"><h3 class="modal-ttl" id="mMedTtl">Nuevo Médico</h3><button class="modal-x" onclick="closeModal('mMedico')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="editMedId">
+    <div class="form-row"><div class="form-group"><label class="form-label">Nombre *</label><input class="form-input" id="mNombre"></div><div class="form-group"><label class="form-label">Apellido *</label><input class="form-input" id="mApellido"></div></div>
+    <div class="form-group"><label class="form-label">Especialidad *</label><input class="form-input" id="mEspecialidad" placeholder="Ej: Cardiología, Pediatría..."></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Teléfono</label><input class="form-input" id="mTel"></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="mEmail"></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">No. Licencia</label><input class="form-input" id="mLicencia"></div><div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="mEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div></div>
+    <div class="form-group"><label class="form-label">Horario</label><input class="form-input" id="mHorario" placeholder="Ej: Lun-Vie 8:00-16:00"></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mMedico')">Cancelar</button><button class="btn btn-primary" onclick="saveMedico()">Guardar</button></div>
+</div>
+</div>
+
+<!-- CAMA -->
+<div class="modal-overlay" id="mCama">
+<div class="modal">
+  <div class="modal-hdr"><h3 class="modal-ttl" id="mCamaTtl">Asignar Cama</h3><button class="modal-x" onclick="closeModal('mCama')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="editCamaId">
+    <div class="form-row"><div class="form-group"><label class="form-label">No. Cama</label><input class="form-input" id="camNum" readonly></div><div class="form-group"><label class="form-label">Piso</label><input class="form-input" id="camPiso" readonly></div></div>
+    <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="camEstado"><option value="libre">Libre</option><option value="ocupada">Ocupada</option><option value="reservada">Reservada</option><option value="mantenimiento">Mantenimiento</option></select></div>
+    <div class="form-group"><label class="form-label">Paciente Asignado</label><select class="form-select" id="camPaciente"><option value="">— Ninguno —</option></select></div>
+    <div class="form-group"><label class="form-label">Médico Responsable</label><select class="form-select" id="camMedico"><option value="">— Ninguno —</option></select></div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="camNotas" rows="2" style="resize:none;"></textarea></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mCama')">Cancelar</button><button class="btn btn-primary" onclick="saveCama()">Guardar</button></div>
+</div>
+</div>
+
+<!-- PAGO -->
+<div class="modal-overlay" id="mPago">
+<div class="modal">
+  <div class="modal-hdr"><h3 class="modal-ttl" id="mPagoTtl">Nuevo Pago</h3><button class="modal-x" onclick="closeModal('mPago')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="editPagoId">
+    <div class="form-group"><label class="form-label">Paciente *</label><select class="form-select" id="pgPaciente"></select></div>
+    <div class="form-group"><label class="form-label">Servicio *</label><select class="form-select" id="pgServicio"><option value="">-</option><option>Consulta General</option><option>Consulta Especialidad</option><option>Control</option><option>Urgencia</option><option>Video Consulta</option><option>Hospitalización</option><option>Laboratorio</option><option>Radiología</option><option>Cirugía</option></select></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Monto (USD) *</label><input type="number" class="form-input" id="pgMonto" step="0.01"></div><div class="form-group"><label class="form-label">Método de Pago</label><select class="form-select" id="pgMetodo"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="seguro">Seguro Médico</option><option value="transferencia">Transferencia</option></select></div></div>
+    <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="pgEstado"><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option><option value="parcial">Pago Parcial</option></select></div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pgNotas" rows="2" style="resize:none;"></textarea></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mPago')">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Guardar</button></div>
+</div>
+</div>
+
+<!-- VIDEO -->
+<div class="modal-overlay" id="mVideo">
+<div class="modal modal-lg">
+  <div class="modal-hdr"><h3 class="modal-ttl">📹 Video Consulta — <span id="vidPatName">—</span></h3><button class="modal-x" onclick="endVideoCall()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body">
+    <div class="vid-wrap" id="vidWrap">
+      <div class="vid-ph" id="vidPh"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.724v6.553a1 1 0 0 1-1.447.894L15 14"/><rect x="3" y="8" width="12" height="10" rx="2"/></svg><p>Iniciando cámara...</p></div>
+      <video id="vidLocal" autoplay muted style="display:none;width:100%;height:100%;object-fit:cover;"></video>
+      <div class="vid-self" id="vidSelf" style="display:none;"><video id="vidSelf2" autoplay muted style="width:100%;display:block;"></video></div>
+    </div>
+    <div style="text-align:center;margin-top:10px;"><span id="vidStatus" style="color:var(--fg2);font-size:13px;">Conectando...</span> &nbsp;|&nbsp; <span class="vid-timer" id="vidTimer">00:00</span></div>
+    <div class="vid-controls">
+      <button class="vid-btn on" id="vBtnMic" onclick="toggleMic()" title="Micrófono"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+      <button class="vid-btn on" id="vBtnCam" onclick="toggleCam()" title="Cámara"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.724v6.553a1 1 0 0 1-1.447.894L15 14"/><rect x="3" y="8" width="12" height="10" rx="2"/></svg></button>
+      <button class="vid-btn end" onclick="endVideoCall()" title="Colgar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.51 16.37A5 5 0 0 1 10.2 17"/><line x1="18.22" y1="14.59" x2="19" y2="15.37"/><path d="M14.73 13.35A7 7 0 0 1 15 15"/></svg></button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DETALLE PACIENTE -->
+<div class="modal-overlay" id="mDetPaciente">
+<div class="modal modal-xl">
+  <div class="modal-hdr"><h3 class="modal-ttl">👤 Expediente del Paciente</h3><button class="modal-x" onclick="closeModal('mDetPaciente')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal-body" id="detPacBody"></div>
+  <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('mDetPaciente')">Cerrar</button><button class="btn btn-blue" id="detPacEditBtn">Editar</button></div>
+</div>
+</div>
+
+<div class="toast-box" id="toastBox"></div>
+
+<script>
+// ============ SUPABASE CONFIG ============
+const SUPABASE_URL = 'https://cqnkwfzmqzoiffejifmj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxbmt3ZnptcXpvaWZmZWppZm1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjYyNDIsImV4cCI6MjA5NDM0MjI0Mn0.Tn4wQ6J7_tfZux7tHWRD37FAyvjombXyszi8F8sPGvQ';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const USE_SUPABASE = true;
+let DB_CONNECTED = false;
+
+// ============ USERS ============
+const USERS={
+  'admin':       {pass:'admin123', nombre:'Administrador', rol:'Administrador', initials:'AD'},
+  'dr.martinez': {pass:'clin1234', nombre:'Dr. Martínez',  rol:'Médico',        initials:'DM'},
+  'dra.garcia':  {pass:'clin1234', nombre:'Dra. García',   rol:'Médico',        initials:'DG'},
+  'recepcion':   {pass:'recep2024',nombre:'Recepción',     rol:'Recepcionista', initials:'RC'}
+};
+let CU=null;
+
+// ============ STORAGE KEYS ============
+const SK={pac:'cc_pac',cit:'cc_cit',con:'cc_con',med:'cc_med',cam:'cc_cam',pay:'cc_pay',cfg:'cc_cfg',not:'cc_not'};
+
+// ============ DATA DEFAULTS ============
+const D_PAC=[
+  {id:1,nombre:'Carlos',apellido:'Gomez',doc:'ABC12345',tel:'555-1234',email:'carlos@mail.com',fechaN:'1985-03-15',sexo:'M',sangre:'O+',dir:'Calle 1',seguro:'ARS Salud',afiliado:'AS001',alergias:'Penicilina',antecedentes:'HTA',emergencia:'Ana Gomez 555-9999',ultimaVisita:'2025-01-15'},
+  {id:2,nombre:'Maria',apellido:'Lopez',doc:'DEF67890',tel:'555-2345',email:'maria@mail.com',fechaN:'1990-07-22',sexo:'F',sangre:'A+',dir:'Av. Principal 45',seguro:'',afiliado:'',alergias:'',antecedentes:'Diabetes T2',emergencia:'',ultimaVisita:'2025-01-18'},
+  {id:3,nombre:'Juan',apellido:'Martinez',doc:'GHI11111',tel:'555-3456',email:'juan@mail.com',fechaN:'1978-11-08',sexo:'M',sangre:'B+',dir:'Res. Las Palmas',seguro:'Humano',afiliado:'HU789',alergias:'Aspirina',antecedentes:'',emergencia:'',ultimaVisita:'2025-01-10'},
+  {id:4,nombre:'Ana',apellido:'Rodriguez',doc:'JKL22222',tel:'555-4567',email:'ana@mail.com',fechaN:'1995-05-30',sexo:'F',sangre:'AB+',dir:'',seguro:'',afiliado:'',alergias:'',antecedentes:'',emergencia:'',ultimaVisita:'2025-01-20'},
+  {id:5,nombre:'Pedro',apellido:'Sanchez',doc:'MNO33333',tel:'555-5678',email:'pedro@mail.com',fechaN:'1982-09-12',sexo:'M',sangre:'O-',dir:'',seguro:'',afiliado:'',alergias:'Latex',antecedentes:'Asma',emergencia:'',ultimaVisita:'2025-01-12'},
+];
+const D_CIT=[
+  {id:1,pacienteId:1,medicoId:1,fecha:'2025-05-20',hora:'09:00',tipo:'general',estado:'pending',notas:''},
+  {id:2,pacienteId:2,medicoId:2,fecha:'2025-05-20',hora:'10:30',tipo:'control',estado:'pending',notas:''},
+  {id:3,pacienteId:3,medicoId:1,fecha:'2025-05-21',hora:'12:00',tipo:'especialidad',estado:'completed',notas:''},
+  {id:4,pacienteId:4,medicoId:2,fecha:'2025-05-22',hora:'08:00',tipo:'urgencia',estado:'pending',notas:''},
+  {id:5,pacienteId:5,medicoId:1,fecha:'2025-05-22',hora:'11:00',tipo:'video',estado:'pending',notas:''},
+];
+const D_CON=[
+  {id:1,pacienteId:1,medicoId:1,fecha:'2025-01-15',tipo:'general',motivo:'Tos y fiebre',diagnostico:'Infección respiratoria aguda',peso:75,altura:175,presion:'120/80',temp:38.2,fc:88,receta:'Amoxicilina 500mg c/8h x7d',indicaciones:'Reposo, líquidos'},
+  {id:2,pacienteId:2,medicoId:2,fecha:'2025-01-18',tipo:'control',motivo:'Control rutina',diagnostico:'Control de diabetes tipo 2',peso:68,altura:162,presion:'130/85',temp:36.6,fc:72,receta:'Metformina 850mg c/12h',indicaciones:'Dieta baja en azúcar'},
+  {id:3,pacienteId:3,medicoId:1,fecha:'2025-01-10',tipo:'especialidad',motivo:'Dolor de cabeza',diagnostico:'Hipertensión arterial',peso:82,altura:178,presion:'150/95',temp:36.5,fc:80,receta:'Enalapril 10mg 1x día',indicaciones:'Reducir sal'},
+];
+const D_MED=[
+  {id:1,nombre:'Dr. Carlos',apellido:'Martínez',especialidad:'Medicina General',tel:'555-0001',email:'martinez@clinica.do',licencia:'MG-001',estado:'activo',horario:'Lun-Vie 8:00-16:00'},
+  {id:2,nombre:'Dra. Laura',apellido:'García',especialidad:'Endocrinología',tel:'555-0002',email:'garcia@clinica.do',licencia:'EN-002',estado:'activo',horario:'Lun-Jue 9:00-17:00'},
+  {id:3,nombre:'Dr. Roberto',apellido:'Pérez',especialidad:'Cardiología',tel:'555-0003',email:'perez@clinica.do',licencia:'CA-003',estado:'activo',horario:'Mar-Sab 8:00-14:00'},
+];
+const D_CAM=Array.from({length:20},(_,i)=>({id:i+1,num:`${Math.floor(i/5)+1}0${(i%5)+1}`,piso:`Piso ${Math.floor(i/5)+1}`,estado:i<3?'ocupada':i===3?'mantenimiento':i===4?'reservada':'libre',pacienteId:i<3?i+1:null,medicoId:i<3?1:null,notas:''}));
+const D_PAY=[
+  {id:1,pacienteId:1,servicio:'Consulta General',monto:50,metodo:'efectivo',estado:'pagado',fecha:'2025-01-15',notas:''},
+  {id:2,pacienteId:2,servicio:'Consulta Especialidad',monto:120,metodo:'seguro',estado:'pagado',fecha:'2025-01-18',notas:''},
+  {id:3,pacienteId:3,servicio:'Control',monto:80,metodo:'tarjeta',estado:'pagado',fecha:'2025-01-10',notas:''},
+  {id:4,pacienteId:4,servicio:'Urgencia',monto:200,metodo:'efectivo',estado:'pendiente',fecha:'2025-01-22',notas:''},
+];
+
+// ============ GLOBAL DATA ARRAYS ============
+let PAC=[],CIT=[],CON=[],MED=[],CAM=[],PAY=[],NOTIFS=[];
+
+// ============ LOCALSTORAGE HELPERS ============
+function ld(k,def){try{const r=localStorage.getItem(k);return r?JSON.parse(r):def;}catch{return def;}}
+function sv(k,d){localStorage.setItem(k,JSON.stringify(d));}
+function svAll(){if(!USE_SUPABASE){sv(SK.pac,PAC);sv(SK.cit,CIT);sv(SK.con,CON);sv(SK.med,MED);sv(SK.cam,CAM);sv(SK.pay,PAY);}}
+
+// ============ SUPABASE HELPERS ============
+async function sbLoad(table, options={}){
+  if(!USE_SUPABASE) return ld(SK[table], options.def || []);
+  try{
+    let query = supabase.from(table).select('*');
+    if(options.order) query = query.order(options.order.by, {ascending: options.order.asc !== false});
+    if(options.limit) query = query.limit(options.limit);
+    if(options.filter) for(const [key,val] of Object.entries(options.filter)) query = query.eq(key, val);
+    const {data,error} = await query;
+    if(error) throw error;
+    return data || [];
+  }catch(e){console.warn(`⚠️ Supabase load ${table}:`,e.message);return ld(SK[table], options.def || []);}
+}
+
+async function sbSave(table, data, idField='id'){
+  if(!USE_SUPABASE){sv(SK[table], data);return data;}
+  try{
+    const {data:result,error} = data[idField] 
+      ? await supabase.from(table).update(data).eq(idField, data[idField]).select().single()
+      : await supabase.from(table).insert([data]).select().single();
+    if(error) throw error;
+    return result;
+  }catch(e){console.warn(`⚠️ Supabase save ${table}:`,e.message);toast('⚠ Guardado localmente (sin conexión)','info');return null;}
+}
+
+async function sbDelete(table, id, idField='id'){
+  if(!USE_SUPABASE) return true;
+  try{
+    const {error} = await supabase.from(table).delete().eq(idField, id);
+    if(error) throw error;
+    return true;
+  }catch(e){console.warn(`⚠️ Supabase delete ${table}:`,e.message);toast('⚠ Eliminado localmente','info');return false;}
+}
+
+async function testSupabaseConnection(){
+  try{
+    const {count,error} = await supabase.from('pacientes').select('*', {count:'exact', head:true});
+    if(error) throw error;
+    DB_CONNECTED = true;
+    document.getElementById('dbStatus').className = 'ok';
+    document.getElementById('dbStatus').textContent = '✅ Conectado a Supabase';
+    return true;
+  }catch(e){
+    DB_CONNECTED = false;
+    document.getElementById('dbStatus').className = 'err';
+    document.getElementById('dbStatus').textContent = '⚠ Modo offline';
+    console.warn('⚠️ No se pudo conectar a Supabase:',e.message);
+    return false;
+  }
+}
+
+async function loadAllData(){
+  document.getElementById('dbStatus').className = 'syncing';
+  document.getElementById('dbStatus').textContent = '🔄 Sincronizando...';
+  
+  await testSupabaseConnection();
+  
+  const [pac,cit,con,med,cam,pay,cfg,not] = await Promise.all([
+    sbLoad('pacientes',{order:{by:'apellido',asc:true},def:D_PAC}),
+    sbLoad('citas',{order:{by:'fecha',asc:true},def:D_CIT}),
+    sbLoad('consultas',{order:{by:'fecha',asc:false},def:D_CON}),
+    sbLoad('medicos',{order:{by:'apellido'},def:D_MED}),
+    sbLoad('camas',{order:{by:'num'},def:D_CAM}),
+    sbLoad('pagos',{order:{by:'fecha',asc:false},def:D_PAY}),
+    sbLoad('config',{limit:1},def:null),
+    sbLoad('notificaciones',{order:{by:'created_at',asc:false},limit:50},def:[])
+  ]);
+  
+  PAC = pac?.map(mapPacFromDB) || ld(SK.pac,D_PAC);
+  CIT = cit?.map(mapCitFromDB) || ld(SK.cit,D_CIT);
+  CON = con?.map(mapConFromDB) || ld(SK.con,D_CON);
+  MED = med?.map(mapMedFromDB) || ld(SK.med,D_MED);
+  CAM = cam?.map(mapCamFromDB) || ld(SK.cam,D_CAM);
+  PAY = pay?.map(mapPayFromDB) || ld(SK.pay,D_PAY);
+  NOTIFS = not || ld(SK.not,[]);
+  
+  const cfgData = cfg?.[0];
+  if(cfgData && document.getElementById('cfgN')){
+    document.getElementById('cfgN').value = cfgData.nombre_clinica || 'Clínica Médica Central';
+    document.getElementById('cfgT').value = cfgData.telefono || '';
+    document.getElementById('cfgD').value = cfgData.direccion || '';
+    document.getElementById('cfgE').value = cfgData.email || '';
+  }
+  
+  if(DB_CONNECTED) toast('✅ Datos sincronizados desde la nube','ok');
+}
+
+// ============ MAPPERS: DB → Frontend ============
+function mapPacFromDB(p){return {...p,fechaN:p.fecha_n,sangre:p.sangre,ultimaVisita:p.ultima_visita};}
+function mapCitFromDB(c){return {...c};}
+function mapConFromDB(c){return {...c};}
+function mapMedFromDB(m){return {...m};}
+function mapCamFromDB(c){return {...c};}
+function mapPayFromDB(p){return {...p};}
+
+// ============ MAPPERS: Frontend → DB ============
+function mapPacToDB(p){const {fechaN:sangre,ultimaVisita,...rest} = p;return {...rest,fecha_n:p.fechaN,ultima_visita:p.ultimaVisita};}
+function mapCitToDB(c){return {...c};}
+function mapConToDB(c){return {...c};}
+function mapMedToDB(m){return {...m};}
+function mapCamToDB(c){return {...c};}
+function mapPayToDB(p){return {...p};}
+
+// ============ AUTH ============
+function fl(u,p){document.getElementById('liUser').value=u;document.getElementById('liPass').value=p;}
+async function doLogin(){
+  const u=document.getElementById('liUser').value.trim(),p=document.getElementById('liPass').value;
+  const err=document.getElementById('loginErr'),btn=document.getElementById('loginBtn');
+  btn.disabled=true;btn.textContent='Verificando...';
+  
+  if(USERS[u]&&USERS[u].pass===p){
+    CU={username:u,...USERS[u]};
+    localStorage.setItem('cc_session',JSON.stringify(CU));
+    err.classList.remove('show');
+    activateSession();
+  }else{err.classList.add('show');document.getElementById('liPass').value='';}
+  btn.disabled=false;btn.textContent='Ingresar al Sistema';
+}
+
+function activateSession(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('sbAv').textContent=CU.initials;
+  document.getElementById('sbName').textContent=CU.nombre;
+  document.getElementById('sbRole').textContent=CU.rol;
+  document.getElementById('topAvatar').textContent=CU.initials;
+  initAll();
+}
+
+function doLogout(){
+  localStorage.removeItem('cc_session');CU=null;
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('liUser').value='';document.getElementById('liPass').value='';
+}
+
+// ============ NOTIFICATIONS ============
+function addNotif(msg,type='info',icon='🔔'){
+  const n={id:Date.now(),msg,type,icon,read:false,time:new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})};
+  NOTIFS.unshift(n);if(NOTIFS.length>50)NOTIFS=NOTIFS.slice(0,50);
+  if(USE_SUPABASE && DB_CONNECTED){sbSave('notificaciones',{mensaje:msg,tipo:type,icono:icon,leido:false});}
+  else sv(SK.not,NOTIFS);
+  renderNotifs();updateNotifBadge();
+}
+function markAllRead(){NOTIFS.forEach(n=>n.read=true);if(USE_SUPABASE&&DB_CONNECTED){/* Actualizar en BD */}else sv(SK.not,NOTIFS);renderNotifs();updateNotifBadge();toast('Todas las notificaciones marcadas','info');}
+function updateNotifBadge(){const unread=NOTIFS.filter(n=>!n.read).length;document.getElementById('nbNotif').textContent=unread||'';document.getElementById('notifDot').style.display=unread?'block':'none';}
+function renderNotifs(){
+  const list=document.getElementById('notifList'),full=document.getElementById('notifFull');
+  if(!NOTIFS.length){const e='<div class="notif-empty">Sin notificaciones</div>';if(list)list.innerHTML=e;if(full)full.innerHTML=e;return;}
+  const html=NOTIFS.slice(0,20).map(n=>`<div class="notif-item ${n.read?'':'unread'}" onclick="readNotif(${n.id})"><div class="notif-dot2" style="background:${n.type==='ok'?'var(--green)':n.type==='err'?'var(--red)':'var(--blue)'}"></div><div style="flex:1;"><div style="font-size:13px;font-weight:${n.read?400:600};">${n.icon} ${n.msg}</div><div style="font-size:11px;color:var(--fg3);margin-top:2px;">${n.time}</div></div></div>`).join('');
+  if(list)list.innerHTML=html;if(full)full.innerHTML=html;
+}
+function readNotif(id){const n=NOTIFS.find(x=>x.id===id);if(n){n.read=true;if(USE_SUPABASE&&DB_CONNECTED){/* Actualizar */}else sv(SK.not,NOTIFS);renderNotifs();updateNotifBadge();}}
+function toggleNotifPanel(){document.getElementById('notifPanel').classList.toggle('open');}
+
+// ============ HELPERS ============
+function age(b){const t=new Date(),d=new Date(b);let a=t.getFullYear()-d.getFullYear();const m=t.getMonth()-d.getMonth();if(m<0||(m===0&&t.getDate()<d.getDate()))a--;return Math.max(0,a);}
+function fDate(s){if(!s)return'—';const d=new Date(s+'T00:00:00');return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});}
+function fEstado(e){return{pending:'Pendiente',completed:'Completada',cancelled:'Cancelada',pagado:'Pagado',pendiente:'Pendiente',parcial:'Parcial',activo:'Activo',inactivo:'Inactivo',libre:'Libre',ocupada:'Ocupada',reservada:'Reservada',mantenimiento:'Mantenim.'}[e]||e;}
+function fTipo(t){return{general:'General',especialidad:'Especialidad',control:'Control',urgencia:'Urgencia',video:'Video'}[t]||t;}
+function fMetodo(m){return{efectivo:'Efectivo',tarjeta:'Tarjeta',seguro:'Seguro',transferencia:'Transfer.'}[m]||m;}
+function getPac(id){return PAC.find(p=>p.id===id);}
+function getMed(id){return MED.find(m=>m.id===id);}
+function nextId(arr){return arr.reduce((m,x)=>Math.max(m,x.id),0)+1;}
+function badgeColor(e){const m={pending:'badge-orange',completed:'badge-blue',cancelled:'badge-red',pagado:'badge-green',pendiente:'badge-orange',parcial:'badge-cyan',activo:'badge-green',inactivo:'badge-red',libre:'badge-green',ocupada:'badge-red',reservada:'badge-orange',mantenimiento:'badge-purple'};return m[e]||'badge-blue';}
+
+// ============ MODAL ============
+function openModal(id){document.getElementById(id).classList.add('active');}
+function closeModal(id){document.getElementById(id).classList.remove('active');}
+
+// ============ POPULATE SELECTS ============
+function populateSelects(){
+  const pacOpts='<option value="">Seleccionar...</option>'+PAC.map(p=>`<option value="${p.id}">${p.nombre} ${p.apellido}</option>`).join('');
+  const medOpts='<option value="">Seleccionar...</option>'+MED.map(m=>`<option value="${m.id}">${m.nombre} ${m.apellido} — ${m.especialidad}</option>`).join('');
+  ['cPaciente','cnPaciente','pgPaciente','camPaciente'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=pacOpts;});
+  ['cMedico','camMedico'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=medOpts;});
+}
+
+// ============ NAVIGATION ============
+function goTo(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('page-'+page),nv=document.querySelector(`.nav-item[data-page="${page}"]`);
+  if(pg)pg.classList.add('active');if(nv)nv.classList.add('active');
+  document.getElementById('notifPanel').classList.remove('open');document.getElementById('sidebar').classList.remove('open');
+  if(page==='estadisticas')setTimeout(renderCharts,100);if(page==='dashboard')setTimeout(renderDashCharts,100);
+  updateStats();renderNotifs();
+}
+
+// ============ STATS ============
+function updateStats(){
+  const pend=CIT.filter(c=>c.estado==='pending').length,ingMes=PAY.filter(p=>p.estado==='pagado').reduce((s,p)=>s+p.monto,0),libres=CAM.filter(c=>c.estado==='libre').length;
+  document.getElementById('ds-pac').textContent=PAC.length;document.getElementById('ds-cit').textContent=pend;document.getElementById('ds-ing').textContent='$'+ingMes;document.getElementById('ds-cam').textContent=libres;
+  document.getElementById('nbCitas').textContent=pend||'';document.getElementById('cs-libre').textContent=libres;
+  document.getElementById('cs-ocup').textContent=CAM.filter(c=>c.estado==='ocupada').length;document.getElementById('cs-res').textContent=CAM.filter(c=>c.estado==='reservada').length;document.getElementById('cs-mant').textContent=CAM.filter(c=>c.estado==='mantenimiento').length;
+  const payPend=PAY.filter(p=>p.estado==='pendiente').reduce((s,p)=>s+p.monto,0);
+  document.getElementById('pay-total').textContent='$'+PAY.filter(p=>p.estado==='pagado').reduce((s,p)=>s+p.monto,0);document.getElementById('pay-pend').textContent='$'+payPend;document.getElementById('pay-count').textContent=PAY.length;
+  ['est-pac','rpt-pac'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=PAC.length;});
+  ['est-cons'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=CON.length;});
+  const ei=document.getElementById('est-ing');if(ei)ei.textContent='$'+ingMes;
+  const em=document.getElementById('est-med');if(em)em.textContent=MED.filter(m=>m.estado==='activo').length;
+  ['rpt-cit','rc-cit'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=CIT.length;});
+  ['rpt-con','rc-con'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=CON.length;});
+  ['rpt-pay','rc-pay'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=PAY.length;});
+  const rcp=document.getElementById('rc-pac');if(rcp)rcp.textContent=PAC.length;const rcc=document.getElementById('rc-cam');if(rcc)rcc.textContent=CAM.length;
+}
+
+// ============ RENDERS ============
+function renderDash(){const tbody=document.getElementById('tbDash');const rows=CIT.filter(c=>c.estado==='pending').slice(0,6);tbody.innerHTML=rows.map(c=>{const p=getPac(c.pacienteId),m=getMed(c.medicoId);return `<tr><td style="font-weight:600;">${p?p.nombre+' '+p.apellido:'—'}</td><td>${fDate(c.fecha)}</td><td>${c.hora}</td><td>${fTipo(c.tipo)}</td><td>${m?m.nombre+' '+m.apellido:'—'}</td><td><span class="badge ${badgeColor(c.estado)}">${fEstado(c.estado)}</span></td><td>${c.tipo==='video'?`<button class="act-btn" onclick="startVideo(${c.id})" title="Video"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.724v6.553a1 1 0 0 1-1.447.894L15 14"/><rect x="3" y="8" width="12" height="10" rx="2"/></svg></button>`:''}<button class="act-btn" onclick="completeCita(${c.id})" title="Completar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button></td></tr>`;}).join('');}
+function renderPacientes(){const s=(document.getElementById('pacSearch').value||'').toLowerCase(),fs=document.getElementById('filterPacSexo').value,fsg=document.getElementById('filterPacSangre').value;let rows=PAC.filter(p=>{const nm=(p.nombre+' '+p.apellido+' '+p.doc+' '+(p.tel||'')+(p.email||'')).toLowerCase();return(!s||nm.includes(s))&&(!fs||p.sexo===fs)&&(!fsg||p.sangre===fsg);});document.getElementById('tbPac').innerHTML=rows.map(p=>`<tr><td style="font-family:monospace;color:var(--green);">#${String(p.id).padStart(4,'0')}</td><td style="font-weight:600;">${p.nombre} ${p.apellido}</td><td style="font-family:monospace;">${p.doc}</td><td>${p.tel||'—'}</td><td>${age(p.fechaN)} años</td><td><span class="badge badge-red">${p.sangre||'—'}</span></td><td>${fDate(p.ultimaVisita)}</td><td><button class="act-btn" onclick="detPaciente(${p.id})" title="Ver"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="act-btn edit" onclick="editPaciente(${p.id})" title="Editar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="act-btn del" onclick="delPaciente(${p.id})" title="Eliminar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`).join('');}
+function renderCitas(){const fe=document.getElementById('filterCitaEstado').value,ft=document.getElementById('filterCitaTipo').value;let rows=CIT.filter(c=>(!fe||c.estado===fe)&&(!ft||c.tipo===ft));document.getElementById('tbCitas').innerHTML=rows.map(c=>{const p=getPac(c.pacienteId),m=getMed(c.medicoId);return `<tr><td style="font-weight:600;">${p?p.nombre+' '+p.apellido:'—'}</td><td>${fDate(c.fecha)}</td><td>${c.hora}</td><td>${fTipo(c.tipo)}</td><td>${m?m.nombre+' '+m.apellido:'—'}</td><td><span class="badge ${badgeColor(c.estado)}">${fEstado(c.estado)}</span></td><td>${c.tipo==='video'&&c.estado==='pending'?`<button class="act-btn" onclick="startVideo(${c.id})" title="Video"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.724v6.553a1 1 0 0 1-1.447.894L15 14"/><rect x="3" y="8" width="12" height="10" rx="2"/></svg></button>`:''}<button class="act-btn edit" onclick="editCita(${c.id})" title="Editar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="act-btn" onclick="completeCita(${c.id})" title="Completar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button><button class="act-btn del" onclick="cancelCita(${c.id})" title="Cancelar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></button><button class="act-btn del" onclick="delCita(${c.id})" title="Eliminar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`;}).join('');}
+function renderConsultas(){const ft=document.getElementById('filterConsTipo').value;let rows=CON.filter(c=>!ft||c.tipo===ft);document.getElementById('tbCons').innerHTML=rows.map(c=>{const p=getPac(c.pacienteId),m=getMed(c.medicoId);return `<tr><td>${fDate(c.fecha)}</td><td style="font-weight:600;">${p?p.nombre+' '+p.apellido:'—'}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.diagnostico}</td><td>${m?m.nombre+' '+m.apellido:'—'}</td><td><span class="badge badge-blue">${fTipo(c.tipo)}</span></td><td style="font-size:12px;color:var(--fg2);">${c.presion?c.presion:'—'} ${c.temp?'| '+c.temp+'°C':''}</td><td><button class="act-btn edit" onclick="editConsulta(${c.id})" title="Editar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="act-btn" onclick="exportConsultaPDF(${c.id})" title="PDF"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="act-btn del" onclick="delConsulta(${c.id})" title="Eliminar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`;}).join('');}
+function renderMedicos(){document.getElementById('docGrid').innerHTML=MED.map(m=>`<div class="doc-card"><div class="doc-avatar">${m.nombre[0]}${m.apellido[0]}</div><h3 style="font-size:16px;font-weight:700;">${m.nombre} ${m.apellido}</h3><p style="color:var(--green);font-size:13px;font-weight:600;margin:4px 0 10px;">${m.especialidad}</p><div style="font-size:12px;color:var(--fg2);line-height:1.8;">📞 ${m.tel||'—'}<br>✉ ${m.email||'—'}<br>🆔 ${m.licencia||'—'}<br>🕐 ${m.horario||'—'}</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center;"><span class="badge ${m.estado==='activo'?'badge-green':'badge-red'}">${fEstado(m.estado)}</span><button class="act-btn edit" onclick="editMedico(${m.id})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="act-btn del" onclick="delMedico(${m.id})" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></div></div>`).join('');}
+function renderCamas(){const f=document.getElementById('filterCama').value;const rows=CAM.filter(c=>!f||c.estado===f);const icons={libre:'🛏️',ocupada:'🚨',reservada:'⏳',mantenimiento:'🔧'};document.getElementById('bedsGrid').innerHTML=rows.map(c=>{const p=c.pacienteId?getPac(c.pacienteId):null;return `<div class="bed-card ${c.estado}" onclick="editBed(${c.id})"><div class="bed-icon">${icons[c.estado]}</div><div class="bed-num">Cama ${c.num}</div><div style="font-size:11px;color:var(--fg2);">${c.piso}</div><div style="margin-top:6px;"><span class="badge ${badgeColor(c.estado)}">${fEstado(c.estado)}</span></div>${p?`<div style="margin-top:6px;font-size:12px;color:var(--fg2);">${p.nombre} ${p.apellido}</div>`:''}</div>`;}).join('');}
+function renderPagos(){document.getElementById('tbPagos').innerHTML=PAY.map(p=>{const pac=getPac(p.pacienteId);return `<tr><td style="font-family:monospace;color:var(--green);">#${String(p.id).padStart(4,'0')}</td><td style="font-weight:600;">${pac?pac.nombre+' '+pac.apellido:'—'}</td><td>${p.servicio}</td><td style="font-weight:700;color:var(--green);">$${p.monto}</td><td>${fMetodo(p.metodo)}</td><td><span class="badge ${badgeColor(p.estado)}">${fEstado(p.estado)}</span></td><td>${fDate(p.fecha)}</td><td><button class="act-btn edit" onclick="editPago(${p.id})" title="Editar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="act-btn del" onclick="delPago(${p.id})" title="Eliminar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`;}).join('');}
+
+// ============ DETAIL PACIENTE ============
+function detPaciente(id){const p=PAC.find(x=>x.id===id);if(!p)return;const cons=CON.filter(c=>c.pacienteId===id),citas=CIT.filter(c=>c.pacienteId===id);document.getElementById('detPacBody').innerHTML=`<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;"><div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;flex-shrink:0;">${p.nombre[0]}${p.apellido[0]}</div><div><h2 style="font-size:22px;font-weight:800;">${p.nombre} ${p.apellido}</h2><div style="color:var(--fg2);font-size:13px;">#${String(p.id).padStart(4,'0')} · ${p.doc} · ${age(p.fechaN)} años</div></div></div><div class="detail-grid"><div class="detail-item"><label>Teléfono</label><span>${p.tel||'—'}</span></div><div class="detail-item"><label>Email</label><span>${p.email||'—'}</span></div><div class="detail-item"><label>Fecha Nacimiento</label><span>${fDate(p.fechaN)}</span></div><div class="detail-item"><label>Sexo</label><span>${p.sexo==='M'?'Masculino':p.sexo==='F'?'Femenino':'—'}</span></div><div class="detail-item"><label>Grupo Sanguíneo</label><span style="color:var(--red);font-weight:700;">${p.sangre||'—'}</span></div><div class="detail-item"><label>Seguro Médico</label><span>${p.seguro||'—'} ${p.afiliado?'('+p.afiliado+')':''}</span></div><div class="detail-item" style="grid-column:span 2;"><label>Alergias</label><span style="color:var(--orange);">${p.alergias||'Ninguna conocida'}</span></div><div class="detail-item" style="grid-column:span 2;"><label>Antecedentes</label><span>${p.antecedentes||'—'}</span></div><div class="detail-item" style="grid-column:span 2;"><label>Contacto Emergencia</label><span>${p.emergencia||'—'}</span></div></div><h3 style="font-size:15px;margin:20px 0 12px;">🩺 Últimas Consultas (${cons.length})</h3>${cons.length?'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:rgba(0,0,0,0.3)"><th style="padding:10px;text-align:left;font-size:11px;">Fecha</th><th style="padding:10px;text-align:left;font-size:11px;">Diagnóstico</th><th style="padding:10px;text-align:left;font-size:11px;">Médico</th></tr></thead><tbody>'+cons.map(c=>{const m=getMed(c.medicoId);return`<tr><td style="padding:10px;font-size:13px;border-top:1px solid var(--border);">${fDate(c.fecha)}</td><td style="padding:10px;font-size:13px;border-top:1px solid var(--border);">${c.diagnostico}</td><td style="padding:10px;font-size:13px;border-top:1px solid var(--border);">${m?m.nombre+' '+m.apellido:'—'}</td></tr>`;}).join('')+'</tbody></table></div>':'<p style="color:var(--fg3);font-size:13px;">Sin consultas registradas</p>'}<h3 style="font-size:15px;margin:20px 0 12px;">📅 Citas (${citas.length})</h3>${citas.length?'<div style="display:flex;flex-wrap:wrap;gap:8px;">'+citas.map(c=>`<span class="badge ${badgeColor(c.estado)}">${fDate(c.fecha)} ${c.hora} — ${fTipo(c.tipo)}</span>`).join('')+'</div>':'<p style="color:var(--fg3);font-size:13px;">Sin citas registradas</p>'}`;document.getElementById('detPacEditBtn').onclick=()=>{closeModal('mDetPaciente');editPaciente(id);};openModal('mDetPaciente');}
+
+// ============ CRUD PACIENTE ============
+async function savePaciente(){
+  const editId=document.getElementById('editPacId').value;
+  const obj={nombre:document.getElementById('pNombre').value.trim(),apellido:document.getElementById('pApellido').value.trim(),doc:document.getElementById('pDoc').value.trim(),fechaN:document.getElementById('pFechaN').value,sexo:document.getElementById('pSexo').value,sangre:document.getElementById('pSangre').value,tel:document.getElementById('pTel').value,email:document.getElementById('pEmail').value,dir:document.getElementById('pDir').value,seguro:document.getElementById('pSeguro').value,afiliado:document.getElementById('pAfiliado').value,alergias:document.getElementById('pAlergias').value,antecedentes:document.getElementById('pAntecedentes').value,emergencia:document.getElementById('pEmergencia').value,ultimaVisita:new Date().toISOString().split('T')[0]};
+  if(!obj.nombre||!obj.apellido||!obj.doc){toast('Completa nombre, apellido y documento','err');return;}
+  const dbObj=mapPacToDB(obj);
+  if(editId){
+    const i=PAC.findIndex(p=>p.id===+editId);
+    if(i>=0){PAC[i]={...PAC[i],...obj};if(USE_SUPABASE&&DB_CONNECTED)await sbSave('pacientes',{...dbObj,id:+editId},'id');toast('Paciente actualizado','ok');}
+  }else{
+    if(USE_SUPABASE&&DB_CONNECTED){const res=await sbSave('pacientes',dbObj);if(res)obj.id=res.id;}
+    else obj.id=nextId(PAC);
+    PAC.push(obj);toast('Paciente registrado','ok');addNotif(`Nuevo paciente: ${obj.nombre} ${obj.apellido}`,'ok','👤');
+  }
+  svAll();renderPacientes();populateSelects();updateStats();closeModal('mPaciente');resetPacForm();
+}
+function editPaciente(id){const p=PAC.find(x=>x.id===id);if(!p)return;document.getElementById('editPacId').value=id;document.getElementById('mPacTtl').textContent='Editar Paciente';document.getElementById('pNombre').value=p.nombre;document.getElementById('pApellido').value=p.apellido;document.getElementById('pDoc').value=p.doc;document.getElementById('pFechaN').value=p.fechaN||'';document.getElementById('pSexo').value=p.sexo||'';document.getElementById('pSangre').value=p.sangre||'';document.getElementById('pTel').value=p.tel||'';document.getElementById('pEmail').value=p.email||'';document.getElementById('pDir').value=p.dir||'';document.getElementById('pSeguro').value=p.seguro||'';document.getElementById('pAfiliado').value=p.afiliado||'';document.getElementById('pAlergias').value=p.alergias||'';document.getElementById('pAntecedentes').value=p.antecedentes||'';document.getElementById('pEmergencia').value=p.emergencia||'';openModal('mPaciente');}
+async function delPaciente(id){if(!confirm('¿Eliminar este paciente?'))return;PAC=PAC.filter(p=>p.id!==id);if(USE_SUPABASE&&DB_CONNECTED)await sbDelete('pacientes',id);svAll();renderPacientes();populateSelects();updateStats();toast('Paciente eliminado','err');}
+function resetPacForm(){['editPacId','pNombre','pApellido','pDoc','pFechaN','pTel','pEmail','pDir','pSeguro','pAfiliado','pAlergias','pAntecedentes','pEmergencia'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['pSexo','pSangre'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('mPacTtl').textContent='Nuevo Paciente';}
+
+// ============ CRUD CITA ============
+async function saveCita(){
+  const editId=document.getElementById('editCitaId').value;
+  const obj={pacienteId:+document.getElementById('cPaciente').value,medicoId:+document.getElementById('cMedico').value||null,fecha:document.getElementById('cFecha').value,hora:document.getElementById('cHora').value,tipo:document.getElementById('cTipo').value,notas:document.getElementById('cNotas').value,estado:'pending'};
+  if(!obj.pacienteId||!obj.fecha||!obj.hora||!obj.tipo){toast('Completa los campos requeridos','err');return;}
+  if(editId){const i=CIT.findIndex(c=>c.id===+editId);if(i>=0){CIT[i]={...CIT[i],...obj};if(USE_SUPABASE&&DB_CONNECTED)await sbSave('citas',{...obj,id:+editId},'id');toast('Cita actualizada','ok');}}
+  else{if(USE_SUPABASE&&DB_CONNECTED){const res=await sbSave('citas',obj);if(res)obj.id=res.id;}else obj.id=nextId(CIT);CIT.push(obj);toast('Cita programada','ok');addNotif(`Nueva cita programada para ${fDate(obj.fecha)}`,'info','📅');}
+  svAll();renderDash();renderCitas();updateStats();closeModal('mCita');resetCitaForm();
+}
+function editCita(id){const c=CIT.find(x=>x.id===id);if(!c)return;document.getElementById('editCitaId').value=id;document.getElementById('mCitaTtl').textContent='Editar Cita';document.getElementById('cPaciente').value=c.pacienteId;document.getElementById('cMedico').value=c.medicoId||'';document.getElementById('cFecha').value=c.fecha;document.getElementById('cHora').value=c.hora;document.getElementById('cTipo').value=c.tipo;document.getElementById('cNotas').value=c.notas||'';openModal('mCita');}
+async function completeCita(id){const c=CIT.find(x=>x.id===id);if(c){c.estado='completed';if(USE_SUPABASE&&DB_CONNECTED)await sbSave('citas',{id:c.id,estado:'completed'},'id');svAll();renderDash();renderCitas();updateStats();toast('Cita completada','ok');addNotif('Cita marcada como completada','ok','✅');}}
+async function cancelCita(id){const c=CIT.find(x=>x.id===id);if(c){c.estado='cancelled';if(USE_SUPABASE&&DB_CONNECTED)await sbSave('citas',{id:c.id,estado:'cancelled'},'id');svAll();renderDash();renderCitas();updateStats();toast('Cita cancelada','err');}}
+async function delCita(id){if(!confirm('¿Eliminar esta cita?'))return;CIT=CIT.filter(c=>c.id!==id);if(USE_SUPABASE&&DB_CONNECTED)await sbDelete('citas',id);svAll();renderDash();renderCitas();updateStats();toast('Cita eliminada','err');}
+function resetCitaForm(){['editCitaId','cFecha','cHora','cNotas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['cPaciente','cMedico','cTipo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('mCitaTtl').textContent='Programar Cita';}
+
+// ============ CRUD CONSULTA ============
+async function saveConsulta(){
+  const editId=document.getElementById('editConsId').value;
+  const medicoNombre=CU?.nombre||'Dr. Martínez';const medObj=MED.find(m=>m.nombre+' '+m.apellido===medicoNombre);
+  const obj={pacienteId:+document.getElementById('cnPaciente').value,medicoId:medObj?medObj.id:1,fecha:new Date().toISOString().split('T')[0],tipo:document.getElementById('cnTipo').value,motivo:document.getElementById('cnMotivo').value,diagnostico:document.getElementById('cnDiag').value,peso:+document.getElementById('cnPeso').value||null,altura:+document.getElementById('cnAltura').value||null,presion:document.getElementById('cnPresion').value,temp:+document.getElementById('cnTemp').value||null,fc:+document.getElementById('cnFC').value||null,receta:document.getElementById('cnReceta').value,indicaciones:document.getElementById('cnIndicaciones').value};
+  if(!obj.pacienteId||!obj.diagnostico){toast('Completa los campos requeridos','err');return;}
+  if(editId){const i=CON.findIndex(c=>c.id===+editId);if(i>=0){CON[i]={...CON[i],...obj};if(USE_SUPABASE&&DB_CONNECTED)await sbSave('consultas',{...obj,id:+editId},'id');toast('Consulta actualizada','ok');}}
+  else{if(USE_SUPABASE&&DB_CONNECTED){const res=await sbSave('consultas',obj);if(res)obj.id=res.id;}else obj.id=nextId(CON);CON.push(obj);toast('Consulta guardada','ok');addNotif(`Nueva consulta registrada — ${obj.diagnostico}`,'ok','🩺');}
+  svAll();renderConsultas();updateStats();closeModal('mConsulta');resetConsForm();
+}
+function editConsulta(id){const c=CON.find(x=>x.id===id);if(!c)return;document.getElementById('editConsId').value=id;document.getElementById('mConsTtl').textContent='Editar Consulta';document.getElementById('cnPaciente').value=c.pacienteId;document.getElementById('cnTipo').value=c.tipo||'general';document.getElementById('cnMotivo').value=c.motivo||'';document.getElementById('cnDiag').value=c.diagnostico||'';document.getElementById('cnPeso').value=c.peso||'';document.getElementById('cnAltura').value=c.altura||'';document.getElementById('cnPresion').value=c.presion||'';document.getElementById('cnTemp').value=c.temp||'';document.getElementById('cnFC').value=c.fc||'';document.getElementById('cnReceta').value=c.receta||'';document.getElementById('cnIndicaciones').value=c.indicaciones||'';openModal('mConsulta');}
+async function delConsulta(id){if(!confirm('¿Eliminar esta consulta?'))return;CON=CON.filter(c=>c.id!==id);if(USE_SUPABASE&&DB_CONNECTED)await sbDelete('consultas',id);svAll();renderConsultas();updateStats();toast('Consulta eliminada','err');}
+function resetConsForm(){['editConsId','cnMotivo','cnDiag','cnPeso','cnAltura','cnPresion','cnTemp','cnFC','cnReceta','cnIndicaciones'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('mConsTtl').textContent='Nueva Consulta';}
+
+// ============ CRUD MEDICO ============
+async function saveMedico(){
+  const editId=document.getElementById('editMedId').value;
+  const obj={nombre:document.getElementById('mNombre').value.trim(),apellido:document.getElementById('mApellido').value.trim(),especialidad:document.getElementById('mEspecialidad').value.trim(),tel:document.getElementById('mTel').value,email:document.getElementById('mEmail').value,licencia:document.getElementById('mLicencia').value,estado:document.getElementById('mEstado').value,horario:document.getElementById('mHorario').value};
+  if(!obj.nombre||!obj.apellido||!obj.especialidad){toast('Completa nombre, apellido y especialidad','err');return;}
+  if(editId){const i=MED.findIndex(m=>m.id===+editId);if(i>=0){MED[i]={...MED[i],...obj};if(USE_SUPABASE&&DB_CONNECTED)await sbSave('medicos',{...obj,id:+editId},'id');toast('Médico actualizado','ok');}}
+  else{if(USE_SUPABASE&&DB_CONNECTED){const res=await sbSave('medicos',obj);if(res)obj.id=res.id;}else obj.id=nextId(MED);MED.push(obj);toast('Médico registrado','ok');addNotif(`Nuevo médico: ${obj.nombre} ${obj.apellido}`,'ok','👨‍⚕️');}
+  svAll();renderMedicos();populateSelects();updateStats();closeModal('mMedico');resetMedForm();
+}
+function editMedico(id){const m=MED.find(x=>x.id===id);if(!m)return;document.getElementById('editMedId').value=id;document.getElementById('mMedTtl').textContent='Editar Médico';['Nombre','Apellido','Especialidad','Tel','Email','Licencia','Estado','Horario'].forEach(f=>{const el=document.getElementById('m'+f);if(el)el.value=m[f.toLowerCase()]||'';});openModal('mMedico');}
+async function delMedico(id){if(!confirm('¿Eliminar este médico?'))return;MED=MED.filter(m=>m.id!==id);if(USE_SUPABASE&&DB_CONNECTED)await sbDelete('medicos',id);svAll();renderMedicos();populateSelects();updateStats();toast('Médico eliminado','err');}
+function resetMedForm(){['editMedId','mNombre','mApellido','mEspecialidad','mTel','mEmail','mLicencia','mHorario'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const es=document.getElementById('mEstado');if(es)es.value='activo';document.getElementById('mMedTtl').textContent='Nuevo Médico';}
+
+// ============ CRUD CAMA ============
+function editBed(id){const c=CAM.find(x=>x.id===id);if(!c)return;document.getElementById('editCamaId').value=id;document.getElementById('mCamaTtl').textContent=`Cama ${c.num} — ${c.piso}`;document.getElementById('camNum').value=c.num;document.getElementById('camPiso').value=c.piso;document.getElementById('camEstado').value=c.estado;document.getElementById('camPaciente').value=c.pacienteId||'';document.getElementById('camMedico').value=c.medicoId||'';document.getElementById('camNotas').value=c.notas||'';openModal('mCama');}
+async function saveCama(){
+  const id=+document.getElementById('editCamaId').value;const i=CAM.findIndex(c=>c.id===id);if(i<0)return;
+  CAM[i].estado=document.getElementById('camEstado').value;CAM[i].pacienteId=+document.getElementById('camPaciente').value||null;CAM[i].medicoId=+document.getElementById('camMedico').value||null;CAM[i].notas=document.getElementById('camNotas').value;
+  if(USE_SUPABASE&&DB_CONNECTED)await sbSave('camas',{...CAM[i],id},'id');
+  svAll();renderCamas();updateStats();closeModal('mCama');toast('Cama actualizada','ok');addNotif(`Cama ${CAM[i].num} → ${fEstado(CAM[i].estado)}`,'info','🏥');
+}
+
+// ============ CRUD PAGO ============
+async function savePago(){
+  const editId=document.getElementById('editPagoId').value;
+  const obj={pacienteId:+document.getElementById('pgPaciente').value,servicio:document.getElementById('pgServicio').value,monto:+document.getElementById('pgMonto').value,metodo:document.getElementById('pgMetodo').value,estado:document.getElementById('pgEstado').value,notas:document.getElementById('pgNotas').value,fecha:new Date().toISOString().split('T')[0]};
+  if(!obj.pacienteId||!obj.servicio||!obj.monto){toast('Completa los campos requeridos','err');return;}
+  if(editId){const i=PAY.findIndex(p=>p.id===+editId);if(i>=0){PAY[i]={...PAY[i],...obj};if(USE_SUPABASE&&DB_CONNECTED)await sbSave('pagos',{...obj,id:+editId},'id');toast('Pago actualizado','ok');}}
+  else{if(USE_SUPABASE&&DB_CONNECTED){const res=await sbSave('pagos',obj);if(res)obj.id=res.id;}else obj.id=nextId(PAY);PAY.push(obj);toast('Pago registrado','ok');addNotif(`Nuevo pago $${obj.monto} — ${obj.servicio}`,'ok','💰');}
+  svAll();renderPagos();updateStats();closeModal('mPago');resetPagoForm();
+}
+function editPago(id){const p=PAY.find(x=>x.id===id);if(!p)return;document.getElementById('editPagoId').value=id;document.getElementById('mPagoTtl').textContent='Editar Pago';document.getElementById('pgPaciente').value=p.pacienteId;document.getElementById('pgServicio').value=p.servicio;document.getElementById('pgMonto').value=p.monto;document.getElementById('pgMetodo').value=p.metodo;document.getElementById('pgEstado').value=p.estado;document.getElementById('pgNotas').value=p.notas||'';openModal('mPago');}
+async function delPago(id){if(!confirm('¿Eliminar este pago?'))return;PAY=PAY.filter(p=>p.id!==id);if(USE_SUPABASE&&DB_CONNECTED)await sbDelete('pagos',id);svAll();renderPagos();updateStats();toast('Pago eliminado','err');}
+function resetPagoForm(){['editPagoId','pgMonto','pgNotas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['pgPaciente','pgServicio','pgMetodo','pgEstado'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=el.options[0]?.value||'';});document.getElementById('mPagoTtl').textContent='Nuevo Pago';}
+
+// ============ GLOBAL SEARCH ============
+function globalSearchFn(){const s=document.getElementById('globalSearch').value.trim().toLowerCase();if(!s)return;const pac=PAC.find(p=>(p.nombre+' '+p.apellido).toLowerCase().includes(s)||p.doc.toLowerCase().includes(s));if(pac){goTo('pacientes');document.getElementById('pacSearch').value=s;renderPacientes();}else goTo('pacientes');}
+
+// ============ VIDEO CALL ============
+let vStream=null,vTimer=null,vSec=0,vMic=true,vCam=true;
+async function startVideo(citaId){const c=CIT.find(x=>x.id===citaId);const p=c?getPac(c.pacienteId):null;document.getElementById('vidPatName').textContent=p?p.nombre+' '+p.apellido:'—';openModal('mVideo');document.getElementById('vidStatus').textContent='Conectando...';document.getElementById('vidTimer').textContent='00:00';document.getElementById('vidPh').style.display='flex';document.getElementById('vidLocal').style.display='none';document.getElementById('vidSelf').style.display='none';vSec=0;vMic=true;vCam=true;document.getElementById('vBtnMic').className='vid-btn on';document.getElementById('vBtnCam').className='vid-btn on';try{vStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});document.getElementById('vidLocal').srcObject=vStream;document.getElementById('vidSelf2').srcObject=vStream;document.getElementById('vidPh').style.display='none';document.getElementById('vidLocal').style.display='block';document.getElementById('vidSelf').style.display='block';document.getElementById('vidStatus').textContent='🟢 En llamada';vTimer=setInterval(()=>{vSec++;const m=String(Math.floor(vSec/60)).padStart(2,'0'),s=String(vSec%60).padStart(2,'0');document.getElementById('vidTimer').textContent=m+':'+s;},1000);}catch{document.getElementById('vidPh').querySelector('p').textContent='⚠ Sin acceso a cámara';document.getElementById('vidStatus').textContent='Error';toast('Permite acceso a cámara','err');}}
+function toggleMic(){if(!vStream)return;vMic=!vMic;vStream.getAudioTracks().forEach(t=>t.enabled=vMic);document.getElementById('vBtnMic').className=vMic?'vid-btn on':'vid-btn off';}
+function toggleCam(){if(!vStream)return;vCam=!vCam;vStream.getVideoTracks().forEach(t=>t.enabled=vCam);document.getElementById('vBtnCam').className=vCam?'vid-btn on':'vid-btn off';document.getElementById('vidLocal').style.opacity=vCam?'1':'0.3';}
+function endVideoCall(){if(vStream){vStream.getTracks().forEach(t=>t.stop());vStream=null;}if(vTimer){clearInterval(vTimer);vTimer=null;}document.getElementById('vidLocal').srcObject=null;document.getElementById('vidSelf2').srcObject=null;closeModal('mVideo');toast('Video consulta finalizada','ok');}
+
+// ============ CHARTS ============
+let charts={};
+function mkChart(id,type,labels,datasets,opts={}){const el=document.getElementById(id);if(!el)return;if(charts[id])charts[id].destroy();charts[id]=new Chart(el,{type,data:{labels,datasets},options:{responsive:true,plugins:{legend:{labels:{color:'#8b95a8',font:{family:'Outfit',size:12}}},tooltip:{backgroundColor:'rgba(13,17,23,0.95)',titleColor:'#e8edf5',bodyColor:'#8b95a8',borderColor:'rgba(255,255,255,0.1)',borderWidth:1}},animation:{duration:600},...opts}});}
+const GR=['rgba(0,217,126,','rgba(59,158,255,','rgba(255,140,66,','rgba(255,69,96,','rgba(168,85,247,','rgba(34,211,238,'];
+function gc(i,a){return GR[i%GR.length]+a+')';}
+function renderDashCharts(){const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];const conByM=Array(12).fill(0);CON.forEach(c=>{const m=new Date(c.fecha+'T00:00:00').getMonth();conByM[m]++;});mkChart('chartConsultas','bar',months,[{label:'Consultas',data:conByM,backgroundColor:GR[0]+'0.6)',borderColor:GR[0]+'1)',borderWidth:2,borderRadius:6}],{scales:{x:{ticks:{color:'#4b5563'},grid:{display:false}},y:{ticks:{color:'#4b5563'},grid:{color:'rgba(255,255,255,0.04)'}}}});const pend=CIT.filter(c=>c.estado==='pending').length,comp=CIT.filter(c=>c.estado==='completed').length,canc=CIT.filter(c=>c.estado==='cancelled').length;mkChart('chartCitas','doughnut',['Pendientes','Completadas','Canceladas'],[{data:[pend,comp,canc],backgroundColor:[gc(2,0.8),gc(1,0.8),gc(3,0.8)],borderWidth:0,hoverOffset:8}],{cutout:'70%'});const days=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],ingData=[420,380,510,290,640,180,350];mkChart('chartIngresos','line',days,[{label:'Ingresos $',data:ingData,borderColor:gc(0,1),backgroundColor:GR[0]+'0.1)',tension:0.4,fill:true,pointBackgroundColor:gc(0,1),pointRadius:4}],{scales:{x:{ticks:{color:'#4b5563'},grid:{display:false}},y:{ticks:{color:'#4b5563'},grid:{color:'rgba(255,255,255,0.04)'}}}});}
+function renderCharts(){const m=PAC.filter(p=>p.sexo==='M').length,f=PAC.filter(p=>p.sexo==='F').length,o=PAC.length-m-f;mkChart('chartSexo','pie',['Masculino','Femenino','No especificado'],[{data:[m,f,o],backgroundColor:[gc(1,0.8),gc(3,0.8),gc(4,0.8)],borderWidth:0}]);const medLabels=MED.map(m=>m.apellido),medData=MED.map(m=>CON.filter(c=>c.medicoId===m.id).length);mkChart('chartMedicos','bar',medLabels,[{label:'Consultas',data:medData,backgroundColor:medLabels.map((_,i)=>gc(i,0.7)),borderRadius:6}],{scales:{x:{ticks:{color:'#4b5563'},grid:{display:false}},y:{ticks:{color:'#4b5563'},grid:{color:'rgba(255,255,255,0.04)'}}}});const metodos=['Efectivo','Tarjeta','Seguro','Transferencia'],metData=metodos.map((m,i)=>PAY.filter(p=>p.metodo===m.toLowerCase()).length);mkChart('chartPagos','doughnut',metodos,[{data:metData,backgroundColor:metodos.map((_,i)=>gc(i,0.8)),borderWidth:0}],{cutout:'65%'});const camEstados=['Libre','Ocupada','Reservada','Mantenimiento'],camData=[CAM.filter(c=>c.estado==='libre').length,CAM.filter(c=>c.estado==='ocupada').length,CAM.filter(c=>c.estado==='reservada').length,CAM.filter(c=>c.estado==='mantenimiento').length];mkChart('chartCamas','doughnut',camEstados,[{data:camData,backgroundColor:[gc(0,0.8),gc(3,0.8),gc(2,0.8),gc(4,0.8)],borderWidth:0}],{cutout:'65%'});}
+
+// ============ PDF ============
+function exportPDF(type){const {jsPDF}=window.jspdf;const doc=new jsPDF();const cfg=ld(SK.cfg,{nombre:'Clínica Médica Central'});const now=new Date().toLocaleDateString('es-ES');doc.setFillColor(7,9,15);doc.rect(0,0,210,32,'F');doc.setTextColor(0,217,126);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('CliniCore Pro ☁️',14,14);doc.setTextColor(139,149,168);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(cfg.nombre||'Clínica Médica Central',14,22);doc.text('Generado: '+now,14,28);doc.setTextColor(0,0,0);if(type==='pacientes'){doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Listado de Pacientes',14,46);doc.autoTable({startY:52,head:[['ID','Nombre','Documento','Edad','Sangre','Teléfono','Seguro']],body:PAC.map(p=>['#'+String(p.id).padStart(4,'0'),p.nombre+' '+p.apellido,p.doc,age(p.fechaN)+' años',p.sangre||'—',p.tel||'—',p.seguro||'—']),headStyles:{fillColor:[0,217,126],textColor:[0,0,0]},alternateRowStyles:{fillColor:[245,252,248]}});doc.save('pacientes_clinicore.pdf');}else if(type==='citas'){doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Citas Médicas',14,46);doc.autoTable({startY:52,head:[['ID','Paciente','Fecha','Hora','Tipo','Médico','Estado']],body:CIT.map(c=>{const p=getPac(c.pacienteId),m=getMed(c.medicoId);return['#'+c.id,p?p.nombre+' '+p.apellido:'—',fDate(c.fecha),c.hora,fTipo(c.tipo),m?m.nombre+' '+m.apellido:'—',fEstado(c.estado)];}),headStyles:{fillColor:[59,158,255],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,248,255]}});doc.save('citas_clinicore.pdf');}else if(type==='consultas'){doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Consultas Médicas',14,46);doc.autoTable({startY:52,head:[['#','Paciente','Fecha','Diagnóstico','Médico','Presión','Temp']],body:CON.map(c=>{const p=getPac(c.pacienteId),m=getMed(c.medicoId);return['#'+c.id,p?p.nombre+' '+p.apellido:'—',fDate(c.fecha),c.diagnostico.substring(0,30),m?m.apellido:'—',c.presion||'—',(c.temp||'—')+'°C'];}),headStyles:{fillColor:[255,140,66],textColor:[255,255,255]},alternateRowStyles:{fillColor:[255,252,245]}});doc.save('consultas_clinicore.pdf');}else if(type==='pagos'){doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Reporte de Pagos',14,46);const total=PAY.filter(p=>p.estado==='pagado').reduce((s,p)=>s+p.monto,0);doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text(`Total cobrado: $${total}`,14,56);doc.autoTable({startY:62,head:[['#Fact','Paciente','Servicio','Monto','Método','Estado','Fecha']],body:PAY.map(p=>{const pac=getPac(p.pacienteId);return['#'+String(p.id).padStart(4,'0'),pac?pac.nombre+' '+pac.apellido:'—',p.servicio,'$'+p.monto,fMetodo(p.metodo),fEstado(p.estado),fDate(p.fecha)];}),headStyles:{fillColor:[0,217,126],textColor:[0,0,0]},alternateRowStyles:{fillColor:[245,252,248]}});doc.save('pagos_clinicore.pdf');}else if(type==='camas'){doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Estado de Camas',14,46);doc.autoTable({startY:52,head:[['Cama','Piso','Estado','Paciente','Notas']],body:CAM.map(c=>{const p=c.pacienteId?getPac(c.pacienteId):null;return[c.num,c.piso,fEstado(c.estado),p?p.nombre+' '+p.apellido:'—',c.notas||'—'];}),headStyles:{fillColor:[168,85,247],textColor:[255,255,255]},alternateRowStyles:{fillColor:[250,245,255]}});doc.save('camas_clinicore.pdf');}else if(type==='general'){doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Reporte General Ejecutivo',14,46);const ingTotal=PAY.filter(p=>p.estado==='pagado').reduce((s,p)=>s+p.monto,0);doc.setFont('helvetica','normal');doc.setFontSize(11);const stats=[['Total Pacientes',PAC.length],['Total Médicos',MED.length],['Citas Pendientes',CIT.filter(c=>c.estado==='pending').length],['Citas Completadas',CIT.filter(c=>c.estado==='completed').length],['Total Consultas',CON.length],['Camas Libres',CAM.filter(c=>c.estado==='libre').length],['Camas Ocupadas',CAM.filter(c=>c.estado==='ocupada').length],['Ingresos Totales','$'+ingTotal]];stats.forEach(([l,v],i)=>{doc.text(`${l}: ${v}`,14,56+i*8);});doc.autoTable({startY:130,head:[['Paciente','Doc','Edad','Sangre','Última Visita']],body:PAC.map(p=>[p.nombre+' '+p.apellido,p.doc,age(p.fechaN)+' años',p.sangre||'—',fDate(p.ultimaVisita)]),headStyles:{fillColor:[0,217,126],textColor:[0,0,0]}});doc.save('reporte_general_clinicore.pdf');}toast('PDF generado y descargado','ok');}
+function exportConsultaPDF(id){const {jsPDF}=window.jspdf;const doc=new jsPDF();const c=CON.find(x=>x.id===id);const p=c?getPac(c.pacienteId):null;const m=c?getMed(c.medicoId):null;doc.setFillColor(7,9,15);doc.rect(0,0,210,32,'F');doc.setTextColor(0,217,126);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('CliniCore Pro ☁️',14,14);doc.setTextColor(139,149,168);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Nota de Consulta Médica',14,22);doc.text('Fecha: '+new Date().toLocaleDateString('es-ES'),14,28);doc.setTextColor(0,0,0);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('Datos del Paciente',14,46);doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text(`Nombre: ${p?p.nombre+' '+p.apellido:'—'}`,14,56);doc.text(`Documento: ${p?p.doc:'—'}`,14,64);doc.text(`Edad: ${p?age(p.fechaN)+' años':'—'} | Sangre: ${p?p.sangre||'—':'—'}`,14,72);doc.text(`Alergias: ${p?p.alergias||'Ninguna':'—'}`,14,80);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('Consulta',14,96);doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text(`Fecha: ${fDate(c.fecha)} | Médico: ${m?m.nombre+' '+m.apellido:'—'}`,14,106);doc.text(`Motivo: ${c.motivo||'—'}`,14,114);const dg=doc.splitTextToSize(`Diagnóstico: ${c.diagnostico}`,180);doc.text(dg,14,122);let y=122+dg.length*7+6;if(c.peso||c.altura||c.presion||c.temp){doc.setFont('helvetica','bold');doc.text('Signos Vitales:',14,y);y+=8;doc.setFont('helvetica','normal');doc.text(`Peso: ${c.peso||'—'} kg | Altura: ${c.altura||'—'} cm | Presión: ${c.presion||'—'} | Temp: ${c.temp||'—'}°C | FC: ${c.fc||'—'} bpm`,14,y);y+=10;}if(c.receta){doc.setFont('helvetica','bold');y+=4;doc.text('Receta Médica:',14,y);y+=8;doc.setFont('helvetica','normal');const r=doc.splitTextToSize(c.receta,180);doc.text(r,14,y);y+=r.length*7+4;}if(c.indicaciones){doc.setFont('helvetica','bold');y+=4;doc.text('Indicaciones:',14,y);y+=8;doc.setFont('helvetica','normal');const ind=doc.splitTextToSize(c.indicaciones,180);doc.text(ind,14,y);}doc.save(`consulta_${p?p.apellido:'pac'}_${c.fecha}.pdf`);toast('Nota de consulta exportada','ok');}
+
+// ============ CONFIG ============
+async function saveConfig(){const cfg={nombre_clinica:document.getElementById('cfgN').value,telefono:document.getElementById('cfgT').value,direccion:document.getElementById('cfgD').value,email:document.getElementById('cfgE').value};if(USE_SUPABASE&&DB_CONNECTED){await sbSave('config',{...cfg,id:1},'id');}else{sv(SK.cfg,{nombre:cfg.nombre_clinica,tel:cfg.telefono,dir:cfg.direccion,email:cfg.email});}toast('Configuración guardada','ok');}
+function loadConfig(){const c=ld(SK.cfg,null);if(c){['N','T','D','E'].forEach((k,i)=>{const id='cfg'+k;const el=document.getElementById(id);if(el&&c[['nombre','tel','dir','email'][i]])el.value=c[['nombre','tel','dir','email'][i]];});}}
+
+// ============ TOAST ============
+function toast(msg,type='ok'){const box=document.getElementById('toastBox');const el=document.createElement('div');el.className=`toast ${type}`;const color=type==='ok'?'var(--green)':type==='err'?'var(--red)':'var(--blue)';el.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">${type==='ok'?'<polyline points="20 6 9 17 4 12"/>':type==='err'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>'}</svg><span>${msg}</span>`;box.appendChild(el);setTimeout(()=>{el.style.animation='slideIn .3s ease reverse forwards';setTimeout(()=>el.remove(),300);},3000);}
+
+// ============ EVENTS ============
+document.querySelectorAll('.nav-item').forEach(n=>{n.addEventListener('click',function(){goTo(this.dataset.page);});});
+document.getElementById('mobBtn').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this){if(this.id==='mVideo')endVideoCall();else closeModal(this.id);}});});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.active').forEach(m=>{if(m.id==='mVideo')endVideoCall();else closeModal(m.id);});});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!document.getElementById('loginScreen').classList.contains('hidden'))doLogin();});
+document.addEventListener('click',e=>{if(!e.target.closest('#notifPanel')&&!e.target.closest('#notifBtn'))document.getElementById('notifPanel').classList.remove('open');});
+
+// ============ INIT ============
+async function initAll(){populateSelects();renderDash();renderPacientes();renderCitas();renderConsultas();renderMedicos();renderCamas();renderPagos();updateStats();renderNotifs();updateNotifBadge();loadConfig();setTimeout(renderDashCharts,200);if(!NOTIFS.length){addNotif('Bienvenido a CliniCore Pro ☁️','ok','🏥');addNotif('Tienes citas pendientes hoy','info','📅');}}
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  await loadAllData();
+  const s=localStorage.getItem('cc_session');
+  if(s){try{CU=JSON.parse(s);activateSession();}catch{localStorage.removeItem('cc_session');}}
+});
+</script>
+</body>
+</html>
