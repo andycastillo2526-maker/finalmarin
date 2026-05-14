@@ -729,8 +729,8 @@ async function loadAllData(){
     sbLoad('medicos',{order:{by:'apellido'},def:D_MED}),
     sbLoad('camas',{order:{by:'num'},def:D_CAM}),
     sbLoad('pagos',{order:{by:'fecha',asc:false},def:D_PAY}),
-    sbLoad('config',{limit:1},def:null),
-    sbLoad('notificaciones',{order:{by:'created_at',asc:false},limit:50},def:[])
+    sbLoad('config',{limit:1,def:null}),
+    sbLoad('notificaciones',{order:{by:'created_at',asc:false},limit:50,def:[]})
   ]);
   
   PAC = pac?.map(mapPacFromDB) || ld(SK.pac,D_PAC);
@@ -761,7 +761,7 @@ function mapCamFromDB(c){return {...c};}
 function mapPayFromDB(p){return {...p};}
 
 // ============ MAPPERS: Frontend → DB ============
-function mapPacToDB(p){const {fechaN:sangre,ultimaVisita,...rest} = p;return {...rest,fecha_n:p.fechaN,ultima_visita:p.ultimaVisita};}
+function mapPacToDB(p){const {fechaN,sangre,ultimaVisita,...rest} = p;return {...rest,fecha_n:p.fechaN,sangre:p.sangre,ultima_visita:p.ultimaVisita};}
 function mapCitToDB(c){return {...c};}
 function mapConToDB(c){return {...c};}
 function mapMedToDB(m){return {...m};}
